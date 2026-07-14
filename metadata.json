@@ -1,0 +1,8 @@
+{
+  "name": "CFT Academia",
+  "description": "Gestor de información académica para Centros de Formación Técnica con tableros interactivos, control de deserción, calificaciones y reportes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

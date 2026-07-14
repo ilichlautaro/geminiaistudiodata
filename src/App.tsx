@@ -1,0 +1,2044 @@
+import React, { useState, useMemo, FormEvent } from 'react';
+import { 
+  LayoutDashboard, 
+  BookOpen, 
+  Users, 
+  TrendingDown, 
+  Award, 
+  FileText, 
+  Plus, 
+  Search, 
+  Filter, 
+  X, 
+  Check, 
+  Download, 
+  UserPlus, 
+  Edit3, 
+  AlertTriangle, 
+  GraduationCap, 
+  Sparkles, 
+  Calculator, 
+  Phone, 
+  Mail, 
+  CheckCircle2, 
+  Printer,
+  ChevronRight,
+  TrendingUp,
+  FileSpreadsheet
+} from 'lucide-react';
+
+// Types & interfaces
+interface SubjectGrades {
+  [subjectName: string]: number;
+}
+
+interface Student {
+  id: string;
+  name: string;
+  rut: string;
+  careerId: string;
+  semester: number;
+  attendance: number;
+  status: 'Regular' | 'Alerta de Riesgo' | 'Suspendido' | 'Retirado';
+  grades: SubjectGrades;
+  email: string;
+  phone: string;
+  supportLogs: string[];
+}
+
+interface Career {
+  id: string;
+  name: string;
+  capacity: number;
+  durationSemesters: number;
+  subjects: string[];
+  color: string;
+  textColor: string;
+  bgLight: string;
+}
+
+// CFT Careers
+const CAREERS: Career[] = [
+  { 
+    id: 'MIN', 
+    name: 'Técnico en Minería', 
+    capacity: 250, 
+    durationSemesters: 5, 
+    subjects: ['Carguío y Transporte', 'Sistemas de Ventilación', 'Prevención de Riesgos', 'Geología General'],
+    color: 'bg-amber-500',
+    textColor: 'text-amber-600',
+    bgLight: 'bg-amber-50'
+  },
+  { 
+    id: 'MEC', 
+    name: 'Téc. Mecánica Automotriz', 
+    capacity: 220, 
+    durationSemesters: 5, 
+    subjects: ['Motores Combustión', 'Sistemas Transmisión', 'Inyección Electrónica', 'Diagnóstico Computarizado'],
+    color: 'bg-blue-500',
+    textColor: 'text-blue-600',
+    bgLight: 'bg-blue-50'
+  },
+  { 
+    id: 'INF', 
+    name: 'Técnico en Informática', 
+    capacity: 300, 
+    durationSemesters: 5, 
+    subjects: ['Fundamentos Progra', 'Bases de Datos', 'Sistemas Operativos', 'Desarrollo Web'],
+    color: 'bg-indigo-500',
+    textColor: 'text-indigo-600',
+    bgLight: 'bg-indigo-50'
+  },
+  { 
+    id: 'ENE', 
+    name: 'Téc. Energías Renovables', 
+    capacity: 180, 
+    durationSemesters: 5, 
+    subjects: ['Sistemas Solares', 'Sistemas Eólicos', 'Eficiencia Energética', 'Redes Inteligentes'],
+    color: 'bg-emerald-500',
+    textColor: 'text-emerald-600',
+    bgLight: 'bg-emerald-50'
+  },
+  { 
+    id: 'ADM', 
+    name: 'Téc. Admin de Empresas', 
+    capacity: 240, 
+    durationSemesters: 5, 
+    subjects: ['Administración Gral', 'Contabilidad Básica', 'Marketing Digital', 'Recursos Humanos'],
+    color: 'bg-purple-500',
+    textColor: 'text-purple-600',
+    bgLight: 'bg-purple-50'
+  },
+  { 
+    id: 'CON', 
+    name: 'Técnico en Construcción', 
+    capacity: 190, 
+    durationSemesters: 5, 
+    subjects: ['Materiales de Obra', 'Interpretación Planos', 'Cubicación y Costos', 'Seguridad en Obra'],
+    color: 'bg-rose-500',
+    textColor: 'text-rose-600',
+    bgLight: 'bg-rose-50'
+  }
+];
+
+// Seed Students with realistic Chilean names & RUTs
+const INITIAL_STUDENTS: Student[] = [
+  {
+    id: 'st-1',
+    name: 'Sofía Lagos Morales',
+    rut: '19.432.556-3',
+    careerId: 'MIN',
+    semester: 4,
+    attendance: 96,
+    status: 'Regular',
+    grades: { 'Carguío y Transporte': 6.8, 'Sistemas de Ventilación': 6.5, 'Prevención de Riesgos': 7.0, 'Geología General': 6.9 },
+    email: 's.lagos@cftacademia.cl',
+    phone: '+56 9 8832 4112',
+    supportLogs: ['Inducción inicial aprobada', 'Postulante a Beca Minera']
+  },
+  {
+    id: 'st-2',
+    name: 'Andrés Soto Figueroa',
+    rut: '20.121.884-K',
+    careerId: 'INF',
+    semester: 2,
+    attendance: 94,
+    status: 'Regular',
+    grades: { 'Fundamentos Progra': 6.7, 'Bases de Datos': 6.5, 'Sistemas Operativos': 6.8, 'Desarrollo Web': 6.8 },
+    email: 'a.soto@cftacademia.cl',
+    phone: '+56 9 7744 5599',
+    supportLogs: []
+  },
+  {
+    id: 'st-3',
+    name: 'Juan Pérez Muñoz',
+    rut: '18.524.312-5',
+    careerId: 'MEC',
+    semester: 3,
+    attendance: 68,
+    status: 'Alerta de Riesgo',
+    grades: { 'Motores Combustión': 3.8, 'Sistemas Transmisión': 4.2, 'Inyección Electrónica': 3.5, 'Diagnóstico Computarizado': 3.7 },
+    email: 'j.perez@cftacademia.cl',
+    phone: '+56 9 6611 2233',
+    supportLogs: ['Llamada de alerta por asistencia', 'Agendado con Psicopedagogo para reforzamiento de Inyección']
+  },
+  {
+    id: 'st-4',
+    name: 'Marta Araya Rojas',
+    rut: '21.354.129-2',
+    careerId: 'CON',
+    semester: 1,
+    attendance: 55,
+    status: 'Alerta de Riesgo',
+    grades: { 'Materiales de Obra': 4.5, 'Interpretación Planos': 3.4, 'Cubicación y Costos': 3.8, 'Seguridad en Obra': 4.2 },
+    email: 'm.araya@cftacademia.cl',
+    phone: '+56 9 9944 1122',
+    supportLogs: ['Entrevista social pendiente', 'Se acordó flexibilidad horaria por motivos laborales']
+  },
+  {
+    id: 'st-5',
+    name: 'Carlos Vera Henríquez',
+    rut: '19.885.421-0',
+    careerId: 'INF',
+    semester: 4,
+    attendance: 71,
+    status: 'Alerta de Riesgo',
+    grades: { 'Fundamentos Progra': 3.5, 'Bases de Datos': 4.0, 'Sistemas Operativos': 3.8, 'Desarrollo Web': 3.2 },
+    email: 'c.vera@cftacademia.cl',
+    phone: '+56 9 5544 3322',
+    supportLogs: ['Tutoría académica asignada en Programación y Web']
+  },
+  {
+    id: 'st-6',
+    name: 'Daniela Castro Ibáñez',
+    rut: '20.312.449-7',
+    careerId: 'ENE',
+    semester: 3,
+    attendance: 92,
+    status: 'Regular',
+    grades: { 'Sistemas Solares': 6.2, 'Sistemas Eólicos': 5.8, 'Eficiencia Energética': 6.0, 'Redes Inteligentes': 5.9 },
+    email: 'd.castro@cftacademia.cl',
+    phone: '+56 9 8811 7733',
+    supportLogs: []
+  },
+  {
+    id: 'st-7',
+    name: 'Gabriel Godoy Silva',
+    rut: '17.942.331-6',
+    careerId: 'ADM',
+    semester: 5,
+    attendance: 90,
+    status: 'Regular',
+    grades: { 'Administración Gral': 5.5, 'Contabilidad Básica': 5.2, 'Marketing Digital': 5.8, 'Recursos Humanos': 6.0 },
+    email: 'g.godoy@cftacademia.cl',
+    phone: '+56 9 4433 2211',
+    supportLogs: []
+  },
+  {
+    id: 'st-8',
+    name: 'Patricia Fuentes Lagos',
+    rut: '19.231.841-4',
+    careerId: 'CON',
+    semester: 3,
+    attendance: 88,
+    status: 'Regular',
+    grades: { 'Materiales de Obra': 5.1, 'Interpretación Planos': 5.4, 'Cubicación y Costos': 5.0, 'Seguridad en Obra': 5.3 },
+    email: 'p.fuentes@cftacademia.cl',
+    phone: '+56 9 7722 8811',
+    supportLogs: []
+  },
+  {
+    id: 'st-9',
+    name: 'Ricardo Torres Galdames',
+    rut: '18.224.512-K',
+    careerId: 'MEC',
+    semester: 2,
+    attendance: 38,
+    status: 'Retirado',
+    grades: { 'Motores Combustión': 2.5, 'Sistemas Transmisión': 3.0, 'Inyección Electrónica': 2.8, 'Diagnóstico Computarizado': 3.1 },
+    email: 'r.torres@cftacademia.cl',
+    phone: '+56 9 1122 3344',
+    supportLogs: ['Abandono de carrera por problemas financieros - Mayo 2026']
+  },
+  {
+    id: 'st-10',
+    name: 'Valentina Ortiz Sepúlveda',
+    rut: '21.114.908-1',
+    careerId: 'ADM',
+    semester: 1,
+    attendance: 98,
+    status: 'Regular',
+    grades: { 'Administración Gral': 6.4, 'Contabilidad Básica': 6.6, 'Marketing Digital': 6.2, 'Recursos Humanos': 6.5 },
+    email: 'v.ortiz@cftacademia.cl',
+    phone: '+56 9 9988 7766',
+    supportLogs: []
+  },
+  {
+    id: 'st-11',
+    name: 'Esteban Plaza Valenzuela',
+    rut: '19.004.832-4',
+    careerId: 'MIN',
+    semester: 2,
+    attendance: 45,
+    status: 'Retirado',
+    grades: { 'Carguío y Transporte': 3.1, 'Sistemas de Ventilación': 3.4, 'Prevención de Riesgos': 4.0, 'Geología General': 3.2 },
+    email: 'e.plaza@cftacademia.cl',
+    phone: '+56 9 3344 5566',
+    supportLogs: ['Desertó voluntariamente por traslado de región']
+  },
+  {
+    id: 'st-12',
+    name: 'Camila Benítez Toro',
+    rut: '20.556.711-2',
+    careerId: 'ENE',
+    semester: 2,
+    attendance: 89,
+    status: 'Regular',
+    grades: { 'Sistemas Solares': 5.4, 'Sistemas Eólicos': 5.2, 'Eficiencia Energética': 5.6, 'Redes Inteligentes': 5.5 },
+    email: 'c.benitez@cftacademia.cl',
+    phone: '+56 9 6677 8899',
+    supportLogs: []
+  },
+  {
+    id: 'st-13',
+    name: 'José González Tapia',
+    rut: '18.776.541-5',
+    careerId: 'MEC',
+    semester: 4,
+    attendance: 83,
+    status: 'Regular',
+    grades: { 'Motores Combustión': 5.1, 'Sistemas Transmisión': 5.0, 'Inyección Electrónica': 4.8, 'Diagnóstico Computarizado': 4.9 },
+    email: 'j.gonzalez@cftacademia.cl',
+    phone: '+56 9 4455 6677',
+    supportLogs: []
+  },
+  {
+    id: 'st-14',
+    name: 'Bastián Garrido Mena',
+    rut: '19.642.315-9',
+    careerId: 'INF',
+    semester: 3,
+    attendance: 79,
+    status: 'Regular',
+    grades: { 'Fundamentos Progra': 4.4, 'Bases de Datos': 4.6, 'Sistemas Operativos': 4.2, 'Desarrollo Web': 4.8 },
+    email: 'b.garrido@cftacademia.cl',
+    phone: '+56 9 8877 6655',
+    supportLogs: ['Monitoreo continuo de asistencia por decaimiento en semestres previos']
+  },
+  {
+    id: 'st-15',
+    name: 'Ignacio Saavedra Ruiz',
+    rut: '20.245.918-6',
+    careerId: 'ADM',
+    semester: 3,
+    attendance: 64,
+    status: 'Alerta de Riesgo',
+    grades: { 'Administración Gral': 4.0, 'Contabilidad Básica': 3.8, 'Marketing Digital': 4.2, 'Recursos Humanos': 3.9 },
+    email: 'i.saavedra@cftacademia.cl',
+    phone: '+56 9 5566 7788',
+    supportLogs: ['Advertencia de baja asistencia emitida el 10/06/2026']
+  },
+  {
+    id: 'st-16',
+    name: 'Mariana Valdés Pardo',
+    rut: '19.982.115-K',
+    careerId: 'MIN',
+    semester: 1,
+    attendance: 91,
+    status: 'Suspendido',
+    grades: { 'Carguío y Transporte': 4.8, 'Sistemas de Ventilación': 4.6, 'Prevención de Riesgos': 5.0, 'Geología General': 4.7 },
+    email: 'm.valdes@cftacademia.cl',
+    phone: '+56 9 7788 1234',
+    supportLogs: ['Congelación de semestre médica autorizada - Junio 2026']
+  }
+];
+
+// Helper to calculate student GPA
+function calculateGPA(grades: SubjectGrades): number {
+  const values = Object.values(grades);
+  if (values.length === 0) return 0;
+  const sum = values.reduce((acc, curr) => acc + curr, 0);
+  return Math.round((sum / values.length) * 10) / 10;
+}
+
+export default function App() {
+  // Navigation active tab
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'carreras' | 'estudiantes' | 'reportes'>('dashboard');
+  
+  // App-wide state
+  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
+  const [careersList, setCareersList] = useState<Career[]>(CAREERS);
+
+  // Filter/Search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCareerFilter, setSelectedCareerFilter] = useState('ALL');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState('ALL');
+
+  // Interactive Chart Options (Tablero)
+  const [dashboardChartMetric, setDashboardChartMetric] = useState<'students' | 'gpa' | 'dropout'>('students');
+
+  // Selected Student for view/edit drawer
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  
+  // Modals / Editors triggers
+  const [isNewStudentModalOpen, setIsNewStudentModalOpen] = useState(false);
+  const [isReportPrinterPreviewOpen, setIsReportPrinterPreviewOpen] = useState(false);
+
+  // New Student Form State
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentRut, setNewStudentRut] = useState('');
+  const [newStudentCareer, setNewStudentCareer] = useState('MIN');
+  const [newStudentSemester, setNewStudentSemester] = useState(1);
+  const [newStudentAttendance, setNewStudentAttendance] = useState(100);
+  const [newStudentEmail, setNewStudentEmail] = useState('');
+  const [newStudentPhone, setNewStudentPhone] = useState('');
+  const [newStudentGrades, setNewStudentGrades] = useState<SubjectGrades>({});
+
+  // Dynamic calculations based on state
+  const totalEnrolled = useMemo(() => {
+    return students.filter(s => s.status !== 'Retirado').length;
+  }, [students]);
+
+  const totalDeserted = useMemo(() => {
+    return students.filter(s => s.status === 'Retirado').length;
+  }, [students]);
+
+  const overallDropoutRate = useMemo(() => {
+    const totalCount = students.length;
+    if (totalCount === 0) return 0;
+    return Math.round((totalDeserted / totalCount) * 1000) / 10;
+  }, [students, totalDeserted]);
+
+  const overallAverageGPA = useMemo(() => {
+    const activeStudents = students.filter(s => s.status !== 'Retirado');
+    if (activeStudents.length === 0) return 0;
+    const totalSum = activeStudents.reduce((sum, s) => sum + calculateGPA(s.grades), 0);
+    return Math.round((totalSum / activeStudents.length) * 10) / 10;
+  }, [students]);
+
+  const studentsAtRiskCount = useMemo(() => {
+    return students.filter(s => s.status === 'Alerta de Riesgo').length;
+  }, [students]);
+
+  // Top Promedios (Outstanding students list)
+  const topStudents = useMemo(() => {
+    return [...students]
+      .filter(s => s.status === 'Regular')
+      .map(s => ({ ...s, gpa: calculateGPA(s.grades) }))
+      .sort((a, b) => b.gpa - a.gpa)
+      .slice(0, 5);
+  }, [students]);
+
+  // Career specific consolidated statistics
+  const careerStats = useMemo(() => {
+    return careersList.map(career => {
+      const careerStudents = students.filter(s => s.careerId === career.id);
+      const active = careerStudents.filter(s => s.status !== 'Retirado');
+      const withdrawn = careerStudents.filter(s => s.status === 'Retirado');
+      const totalCount = careerStudents.length;
+
+      const dropoutRate = totalCount > 0 ? Math.round((withdrawn.length / totalCount) * 100) : 0;
+      
+      const totalGpaSum = active.reduce((acc, s) => acc + calculateGPA(s.grades), 0);
+      const avgGpa = active.length > 0 ? Math.round((totalGpaSum / active.length) * 10) / 10 : 0;
+
+      const avgAttendance = active.length > 0 ? Math.round(active.reduce((acc, s) => acc + s.attendance, 0) / active.length) : 0;
+
+      return {
+        ...career,
+        studentCount: active.length,
+        dropoutRate,
+        avgGpa,
+        avgAttendance,
+        totalEnrolled: totalCount
+      };
+    });
+  }, [students, careersList]);
+
+  // Selected Student object
+  const selectedStudent = useMemo(() => {
+    return students.find(s => s.id === selectedStudentId) || null;
+  }, [students, selectedStudentId]);
+
+  // Filtered student database list
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => {
+      const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          s.rut.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          s.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCareer = selectedCareerFilter === 'ALL' || s.careerId === selectedCareerFilter;
+      const matchStatus = selectedStatusFilter === 'ALL' || s.status === selectedStatusFilter;
+      const matchSemester = selectedSemesterFilter === 'ALL' || s.semester === Number(selectedSemesterFilter);
+      return matchSearch && matchCareer && matchStatus && matchSemester;
+    });
+  }, [students, searchQuery, selectedCareerFilter, selectedStatusFilter, selectedSemesterFilter]);
+
+  // Add standard new student helper
+  const handleAddNewStudent = (e: FormEvent) => {
+    e.preventDefault();
+    if (!newStudentName || !newStudentRut) {
+      alert('Por favor complete los campos obligatorios: Nombre y RUT.');
+      return;
+    }
+
+    const careerObj = careersList.find(c => c.id === newStudentCareer);
+    const initialGrades: SubjectGrades = {};
+    if (careerObj) {
+      careerObj.subjects.forEach(sub => {
+        initialGrades[sub] = Number((4.0 + Math.random() * 3.0).toFixed(1)); // random solid grade
+      });
+    }
+
+    const newStudent: Student = {
+      id: `st-${Date.now()}`,
+      name: newStudentName,
+      rut: newStudentRut,
+      careerId: newStudentCareer,
+      semester: Number(newStudentSemester),
+      attendance: Number(newStudentAttendance),
+      status: Number(newStudentAttendance) < 70 ? 'Alerta de Riesgo' : 'Regular',
+      grades: initialGrades,
+      email: newStudentEmail || `${newStudentName.toLowerCase().replace(/\s+/g, '.')}@cftacademia.cl`,
+      phone: newStudentPhone || '+56 9 ' + Math.floor(10000000 + Math.random() * 90000000),
+      supportLogs: ['Ingreso de matrícula nuevo estudiante']
+    };
+
+    setStudents(prev => [newStudent, ...prev]);
+    setIsNewStudentModalOpen(false);
+
+    // Reset fields
+    setNewStudentName('');
+    setNewStudentRut('');
+    setNewStudentCareer('MIN');
+    setNewStudentSemester(1);
+    setNewStudentAttendance(100);
+    setNewStudentEmail('');
+    setNewStudentPhone('');
+  };
+
+  // Grade updates
+  const handleGradeChange = (studentId: string, subject: string, val: string) => {
+    const num = parseFloat(val);
+    if (isNaN(num) || num < 1.0 || num > 7.0) return;
+    
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId) {
+        const updatedGrades = { ...s.grades, [subject]: Math.round(num * 10) / 10 };
+        // Automatically check risk if overall average falls below 4.0 or attendance is low
+        const gpa = calculateGPA(updatedGrades);
+        let status = s.status;
+        if (s.status === 'Regular' || s.status === 'Alerta de Riesgo') {
+          status = (gpa < 4.0 || s.attendance < 75) ? 'Alerta de Riesgo' : 'Regular';
+        }
+        return {
+          ...s,
+          grades: updatedGrades,
+          status
+        };
+      }
+      return s;
+    }));
+  };
+
+  // Status updates
+  const handleStatusChange = (studentId: string, newStatus: Student['status']) => {
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId) {
+        return { ...s, status: newStatus };
+      }
+      return s;
+    }));
+  };
+
+  // Attendance update
+  const handleAttendanceChange = (studentId: string, newAttendance: number) => {
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId) {
+        const att = Math.max(0, Math.min(100, newAttendance));
+        const gpa = calculateGPA(s.grades);
+        let status = s.status;
+        if (s.status === 'Regular' || s.status === 'Alerta de Riesgo') {
+          status = (gpa < 4.0 || att < 75) ? 'Alerta de Riesgo' : 'Regular';
+        }
+        return { ...s, attendance: att, status };
+      }
+      return s;
+    }));
+  };
+
+  // Add Support Log
+  const [tempSupportLog, setTempSupportLog] = useState('');
+  const handleAddSupportLog = (studentId: string) => {
+    if (!tempSupportLog.trim()) return;
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId) {
+        return {
+          ...s,
+          supportLogs: [...s.supportLogs, tempSupportLog.trim()]
+        };
+      }
+      return s;
+    }));
+    setTempSupportLog('');
+  };
+
+  // Export Filtered Student Data as CSV file
+  const handleExportCSV = () => {
+    let csvContent = 'data:text/csv;charset=utf-8,';
+    csvContent += 'Nombre,RUT,Carrera,Semestre,Asistencia,Estado,Promedio Gral,Contacto,Telefono\r\n';
+    
+    filteredStudents.forEach(s => {
+      const c = CAREERS.find(car => car.id === s.careerId)?.name || s.careerId;
+      const gpa = calculateGPA(s.grades);
+      const row = `"${s.name}","${s.rut}","${c}",${s.semester},${s.attendance}%,"${s.status}",${gpa},"${s.email}","${s.phone}"`;
+      csvContent += row + '\r\n';
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Reporte_Academico_CFT_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Interactive Graph variables
+  const maxMetricValue = useMemo(() => {
+    const values = careerStats.map(c => {
+      if (dashboardChartMetric === 'students') return c.studentCount;
+      if (dashboardChartMetric === 'gpa') return c.avgGpa;
+      return c.dropoutRate;
+    });
+    return Math.max(...values, 1);
+  }, [careerStats, dashboardChartMetric]);
+
+  return (
+    <div className="bg-slate-50 text-slate-900 w-full min-h-screen flex flex-col md:flex-row overflow-x-hidden font-sans antialiased" id="cft-root-container">
+      
+      {/* Sidebar Navigation */}
+      <aside className="w-full md:w-64 bg-slate-900 text-white shrink-0 flex flex-col justify-between" id="cft-sidebar">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white shadow-md shadow-blue-500/20 text-lg">C</div>
+            <div>
+              <span className="font-extrabold tracking-tight text-xl italic block">CFT Academia</span>
+              <span className="text-[10px] tracking-widest text-slate-400 uppercase font-bold block">Gestión e Información</span>
+            </div>
+          </div>
+          
+          <nav className="space-y-1.5" id="cft-navigation-links">
+            <button 
+              onClick={() => setActiveTab('dashboard')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm ${
+                activeTab === 'dashboard' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30 font-bold border border-blue-500/20' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              id="nav-link-dashboard"
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              Tablero Principal
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('carreras')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm ${
+                activeTab === 'carreras' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30 font-bold border border-blue-500/20' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              id="nav-link-carreras"
+            >
+              <BookOpen className="w-5 h-5" />
+              Oferta Académica
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('estudiantes')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm ${
+                activeTab === 'estudiantes' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30 font-bold border border-blue-500/20' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              id="nav-link-estudiantes"
+            >
+              <Users className="w-5 h-5" />
+              Estudiantes & Notas
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('reportes')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm ${
+                activeTab === 'reportes' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30 font-bold border border-blue-500/20' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              id="nav-link-reportes"
+            >
+              <FileText className="w-5 h-5" />
+              Reportes & Alertas
+            </button>
+          </nav>
+        </div>
+
+        {/* Sidebar Footer Academic Status */}
+        <div className="p-6 mt-auto border-t border-slate-800" id="cft-sidebar-footer">
+          <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/50">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Periodo Vigente</p>
+            <p className="text-white font-semibold text-sm">Segundo Semestre 2026</p>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[11px] text-slate-400">Servidores Académicos OK</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto" id="cft-main-workspace">
+        
+        {/* Dynamic Header */}
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8" id="cft-header">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {activeTab === 'dashboard' && 'Tablero de Control Académico'}
+              {activeTab === 'carreras' && 'Estadísticas de Carreras'}
+              {activeTab === 'estudiantes' && 'Registro General de Estudiantes'}
+              {activeTab === 'reportes' && 'Reportes & Análisis de Deserción'}
+            </h1>
+            <p className="text-slate-500 text-sm mt-0.5">
+              {activeTab === 'dashboard' && 'Consolidado general de rendimiento, matrículas y alertas de retención.'}
+              {activeTab === 'carreras' && 'Distribución, vacantes de matrículas y promedios por carrera técnica.'}
+              {activeTab === 'estudiantes' && 'Búsqueda, visualización de fichas y edición de calificaciones.'}
+              {activeTab === 'reportes' && 'Gráficos cruzados de asistencia vs. notas y herramientas de exportación.'}
+            </p>
+          </div>
+
+          <div className="flex gap-2.5 w-full sm:w-auto shrink-0" id="cft-header-actions">
+            <button 
+              onClick={() => setIsNewStudentModalOpen(true)}
+              className="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 transition-all text-sm"
+              id="action-btn-new-student"
+            >
+              <UserPlus className="w-4 h-4" />
+              Nuevo Estudiante
+            </button>
+            <button 
+              onClick={handleExportCSV}
+              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-100 bg-white rounded-xl flex items-center justify-center gap-2 font-semibold text-slate-700 transition-all text-sm"
+              id="action-btn-export"
+              title="Exportar base de datos según filtros"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exportar</span>
+            </button>
+          </div>
+        </header>
+
+        {/* TAB 1: DASHBOARD (BENTO GRID STYLE) */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6" id="view-dashboard">
+            {/* 4 Core Statistics Grid Cards (Bento Metric Rows) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="bento-metric-row">
+              
+              {/* Metric Card 1: Estudiantes Totales */}
+              <div className="bg-white border border-slate-200/80 shadow-xs rounded-[1.8rem] p-6 flex flex-col justify-between hover:shadow-md transition-all group" id="metric-enrolled">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Matrículas Activas</span>
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Users className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">{totalEnrolled}</span>
+                    <span className="text-emerald-500 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-0.5">
+                      <TrendingUp className="w-3 h-3" /> +4.2%
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">Capacidad global: {Math.round((totalEnrolled / 1340) * 100)}% de vacantes</p>
+                </div>
+              </div>
+
+              {/* Metric Card 2: Tasa de Deserción */}
+              <div className="bg-white border border-slate-200/80 shadow-xs rounded-[1.8rem] p-6 flex flex-col justify-between hover:shadow-md transition-all group" id="metric-dropout">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Tasa de Deserción</span>
+                  <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <TrendingDown className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">{overallDropoutRate}%</span>
+                    <span className="text-emerald-500 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+                      -1.4% este sem.
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">Objetivo institucional: inferior al 8.0%</p>
+                </div>
+              </div>
+
+              {/* Metric Card 3: Promedio General */}
+              <div className="bg-white border border-slate-200/80 shadow-xs rounded-[1.8rem] p-6 flex flex-col justify-between hover:shadow-md transition-all group" id="metric-gpa">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Promedio General</span>
+                  <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Award className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">{overallAverageGPA}</span>
+                    <span className="text-slate-400 text-xs font-semibold">/ escala 7.0</span>
+                  </div>
+                  <p className="text-[11px] text-indigo-600 font-medium mt-2">Rendimiento: Sobre el nivel de aprobación (4.0)</p>
+                </div>
+              </div>
+
+              {/* Metric Card 4: Alertas Activas */}
+              <div className="bg-amber-50 border border-amber-200 shadow-xs rounded-[1.8rem] p-6 flex flex-col justify-between hover:shadow-md transition-all group" id="metric-alerts">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-amber-800 text-xs font-bold uppercase tracking-wider">Estudiantes en Riesgo</span>
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl md:text-4xl font-extrabold text-amber-900 tracking-tight">{studentsAtRiskCount}</span>
+                    <span className="text-amber-700 text-[11px] font-semibold bg-amber-200/60 px-2 py-0.5 rounded-md">
+                      Baja asist. / promedio
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-800/80 mt-2">Requieren acompañamiento inmediato</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bento Grid Middle Row: Dynamic Interactive Chart & Alertas */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="bento-middle-row">
+              
+              {/* Dynamic Interactive Chart Card (Span 8) */}
+              <div className="col-span-1 lg:col-span-8 bg-white border border-slate-200/80 rounded-[2rem] p-6 md:p-8 flex flex-col justify-between" id="bento-chart-container">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-lg">Distribución por Carrera Académica</h3>
+                    <p className="text-xs text-slate-500">Haz clic en los controles para cambiar la métrica visualizada.</p>
+                  </div>
+                  <div className="bg-slate-100 p-1 rounded-xl flex gap-1" id="chart-metric-controls">
+                    <button 
+                      onClick={() => setDashboardChartMetric('students')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        dashboardChartMetric === 'students' 
+                          ? 'bg-white text-slate-900 shadow-xs' 
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      Matrículas
+                    </button>
+                    <button 
+                      onClick={() => setDashboardChartMetric('gpa')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        dashboardChartMetric === 'gpa' 
+                          ? 'bg-white text-slate-900 shadow-xs' 
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      Promedio Notas
+                    </button>
+                    <button 
+                      onClick={() => setDashboardChartMetric('dropout')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        dashboardChartMetric === 'dropout' 
+                          ? 'bg-white text-slate-900 shadow-xs' 
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      Tasa Deserción
+                    </button>
+                  </div>
+                </div>
+
+                {/* SVG Beautiful Dynamic Chart Bar Graphics */}
+                <div className="flex-1 flex flex-col justify-end min-h-[220px]" id="bento-svg-chart">
+                  <div className="flex items-end justify-between gap-4 md:gap-8 h-48 border-b border-slate-100 pb-2">
+                    {careerStats.map(c => {
+                      const value = 
+                        dashboardChartMetric === 'students' ? c.studentCount : 
+                        dashboardChartMetric === 'gpa' ? c.avgGpa : c.dropoutRate;
+                      
+                      const heightPercent = Math.max(8, Math.min(100, (value / maxMetricValue) * 100));
+
+                      return (
+                        <div key={c.id} className="flex-1 flex flex-col items-center group relative cursor-pointer">
+                          {/* Tooltip on hover */}
+                          <div className="absolute bottom-full mb-2 bg-slate-900 text-white text-[11px] px-3 py-1.5 rounded-lg font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap">
+                            <span className="block text-slate-300 font-medium text-[9px] uppercase tracking-wider">{c.name}</span>
+                            <span>
+                              {dashboardChartMetric === 'students' && `${value} Estudiantes`}
+                              {dashboardChartMetric === 'gpa' && `Promedio: ${value}`}
+                              {dashboardChartMetric === 'dropout' && `Deserción: ${value}%`}
+                            </span>
+                          </div>
+
+                          {/* Bar filled element */}
+                          <div className="w-full relative flex justify-center items-end" style={{ height: '100%' }}>
+                            <div 
+                              className={`w-full max-w-[40px] rounded-t-xl transition-all duration-500 ease-out ${c.color} group-hover:brightness-105 shadow-sm group-hover:shadow-md`}
+                              style={{ height: `${heightPercent}%` }}
+                            >
+                              <div className="w-full h-full bg-linear-to-t from-black/10 to-transparent flex items-start justify-center pt-2">
+                                <span className="text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {value}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* X Label */}
+                          <span className="text-[10px] font-extrabold text-slate-400 mt-3 uppercase tracking-wider">
+                            {c.id}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold px-1">
+                    <span>* Ejes categorizados por código de carrera (MIN, MEC, INF, ENE, ADM, CON)</span>
+                    <span className="text-blue-600 cursor-pointer hover:underline" onClick={() => setActiveTab('carreras')}>
+                      Ver detalle de carreras &rarr;
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Red List: Alertas de Riesgo de Deserción (Span 4) */}
+              <div className="col-span-1 lg:col-span-4 bg-slate-900 text-white rounded-[2rem] p-6 md:p-8 flex flex-col justify-between" id="bento-risk-panel">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-2">
+                      <AlertTriangle className="text-amber-500 w-5 h-5 animate-pulse" />
+                      Alertas Críticas
+                    </h3>
+                    <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      Prioridad Alta
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-xs mb-6">Estudiantes con asistencia crítica (&lt;75%) o promedio reprobatorio (&lt;4.0).</p>
+
+                  <div className="space-y-4 max-h-[220px] overflow-y-auto pr-1" id="risk-students-scroller">
+                    {students.filter(s => s.status === 'Alerta de Riesgo').length === 0 ? (
+                      <div className="py-8 text-center text-slate-500 text-sm">
+                        No hay alertas de deserción pendientes. ¡Buen trabajo!
+                      </div>
+                    ) : (
+                      students.filter(s => s.status === 'Alerta de Riesgo').map(s => {
+                        const career = CAREERS.find(c => c.id === s.careerId);
+                        const avg = calculateGPA(s.grades);
+                        return (
+                          <div 
+                            key={s.id} 
+                            onClick={() => setSelectedStudentId(s.id)}
+                            className="bg-slate-800/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-all group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-400 font-bold flex items-center justify-center text-xs">
+                                {s.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-100 group-hover:text-blue-400 transition-colors">{s.name}</h4>
+                                <p className="text-[10px] text-slate-400">{career?.name || s.careerId} • Sem. {s.semester}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[11px] font-bold text-rose-400">Asis: {s.attendance}%</div>
+                              <div className="text-[10px] text-slate-400">Prom: {avg}</div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => {
+                    setSelectedStatusFilter('Alerta de Riesgo');
+                    setActiveTab('estudiantes');
+                  }}
+                  className="w-full mt-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all border border-slate-700 text-center"
+                >
+                  Gestionar Alertas e Intervenciones
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom Row Bento Card: Estudiantes Destacados Table */}
+            <div className="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-xs" id="bento-outstanding-table">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg">Cuadro de Honor (Mejores Promedios)</h3>
+                  <p className="text-xs text-slate-500">Alumnos con estatus regular con las calificaciones más destacadas del CFT.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSelectedStatusFilter('Regular');
+                    setActiveTab('estudiantes');
+                  }}
+                  className="text-blue-600 hover:text-blue-800 font-bold text-xs flex items-center gap-1 self-start sm:self-auto"
+                >
+                  Ver listado general de alumnos <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 text-[10px] uppercase tracking-wider font-extrabold">
+                      <th className="py-3 px-4">Estudiante</th>
+                      <th className="py-3 px-4">RUT</th>
+                      <th className="py-3 px-4">Carrera Técnica</th>
+                      <th className="py-3 px-4 text-center">Asistencia</th>
+                      <th className="py-3 px-4 text-center">Promedio</th>
+                      <th className="py-3 px-4 text-right">Estatus Académico</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topStudents.map(s => {
+                      const career = CAREERS.find(c => c.id === s.careerId);
+                      return (
+                        <tr 
+                          key={s.id} 
+                          onClick={() => setSelectedStudentId(s.id)}
+                          className="border-b border-slate-50 hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                        >
+                          <td className="py-3.5 px-4 font-semibold text-slate-800 group-hover:text-blue-600">
+                            {s.name}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 text-xs font-mono">{s.rut}</td>
+                          <td className="py-3.5 px-4 text-slate-600 text-xs">
+                            <span className="flex items-center gap-2">
+                              <span className={`w-2.5 h-2.5 rounded-full ${career?.color || 'bg-slate-400'}`}></span>
+                              {career?.name || s.careerId}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center text-xs text-slate-600 font-medium">{s.attendance}%</td>
+                          <td className="py-3.5 px-4 text-center font-black text-blue-600 text-sm">{s.gpa}</td>
+                          <td className="py-3.5 px-4 text-right">
+                            <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">
+                              {s.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: CAREERS VIEWS */}
+        {activeTab === 'carreras' && (
+          <div className="space-y-6 animate-fade-in" id="view-carreras">
+            {/* Introductory statement */}
+            <div className="bg-linear-to-r from-slate-900 to-blue-950 text-white rounded-[2rem] p-6 md:p-8 relative overflow-hidden shadow-lg shadow-blue-100/10">
+              <div className="relative z-10 max-w-2xl">
+                <span className="bg-blue-500 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full tracking-widest mb-4 inline-block">CFT Academia</span>
+                <h2 className="text-xl md:text-2xl font-bold mb-2">Monitoreo Detallado por Especialidad Técnica</h2>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  Supervisión de matrículas, vacantes y factores de deserción de cada carrera de nuestro CFT. Permite a coordinadores académicos validar el rendimiento grupal en tiempo real.
+                </p>
+              </div>
+              <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-y-1/4 translate-x-1/8">
+                <GraduationCap className="w-80 h-80" />
+              </div>
+            </div>
+
+            {/* Careers Matrix Card Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {careerStats.map(c => {
+                const percentFull = Math.min(100, Math.round((c.totalEnrolled / c.capacity) * 100));
+                
+                return (
+                  <div key={c.id} className="bg-white border border-slate-200/80 rounded-[2rem] p-6 flex flex-col justify-between hover:shadow-lg transition-all" id={`career-card-${c.id}`}>
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <span className={`px-3 py-1.5 rounded-lg text-xs font-bold text-white ${c.color}`}>
+                          {c.id}
+                        </span>
+                        <div className="text-right">
+                          <span className="text-slate-400 text-[10px] font-bold uppercase block">Prom. Carrera</span>
+                          <span className="text-lg font-black text-slate-900">{c.avgGpa}</span>
+                        </div>
+                      </div>
+
+                      <h3 className="font-bold text-slate-900 text-base mb-1">{c.name}</h3>
+                      <p className="text-slate-400 text-xs mb-4">Plan Curricular: {c.durationSemesters} Semestres</p>
+
+                      <div className="space-y-3.5 border-t border-slate-50 pt-4">
+                        {/* Attendance Metric */}
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-medium">Asistencia Promedio:</span>
+                          <span className="font-bold text-slate-800">{c.avgAttendance}%</span>
+                        </div>
+
+                        {/* Dropout Metric with warning badge */}
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-medium">Tasa Deserción Histórica:</span>
+                          <span className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${
+                            c.dropoutRate > 15 ? 'bg-rose-100 text-rose-700' : 
+                            c.dropoutRate > 8 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {c.dropoutRate}%
+                          </span>
+                        </div>
+
+                        {/* Enrollment Progress bar */}
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1 font-semibold">
+                            <span className="text-slate-400">Cupos Reservados:</span>
+                            <span className="text-slate-700">{c.totalEnrolled} / {c.capacity} Estudiantes</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${c.color}`} 
+                              style={{ width: `${percentFull}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between gap-2">
+                      <button 
+                        onClick={() => {
+                          setSelectedCareerFilter(c.id);
+                          setSelectedStatusFilter('ALL');
+                          setActiveTab('estudiantes');
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-bold hover:underline"
+                      >
+                        Ver Alumnos Inscritos
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedCareerFilter(c.id);
+                          setSelectedStatusFilter('ALL');
+                          setActiveTab('reportes');
+                        }}
+                        className="text-xs text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1"
+                      >
+                        Generar Reporte <FileText className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: STUDENTS DIRECTORY & GRADES MANAGER */}
+        {activeTab === 'estudiantes' && (
+          <div className="space-y-6" id="view-estudiantes">
+            {/* Search & Filter bar Card */}
+            <div className="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-xs flex flex-col gap-4" id="filters-card">
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+                
+                {/* Search field */}
+                <div className="relative w-full lg:flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                  <input 
+                    type="text" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar estudiante por nombre, RUT, correo académico..."
+                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter selects */}
+                <div className="grid grid-cols-3 gap-2.5 w-full lg:w-auto shrink-0">
+                  {/* Career Filter */}
+                  <div>
+                    <select
+                      value={selectedCareerFilter}
+                      onChange={(e) => setSelectedCareerFilter(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="ALL">Todas las Carreras</option>
+                      {CAREERS.map(c => (
+                        <option key={c.id} value={c.id}>{c.id}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div>
+                    <select
+                      value={selectedStatusFilter}
+                      onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="ALL">Todos los Estados</option>
+                      <option value="Regular">Regular</option>
+                      <option value="Alerta de Riesgo">Alerta de Riesgo</option>
+                      <option value="Suspendido">Suspendido</option>
+                      <option value="Retirado">Retirados/Desertor</option>
+                    </select>
+                  </div>
+
+                  {/* Semester Filter */}
+                  <div>
+                    <select
+                      value={selectedSemesterFilter}
+                      onChange={(e) => setSelectedSemesterFilter(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="ALL">Cualquier Semestre</option>
+                      <option value="1">1° Semestre</option>
+                      <option value="2">2° Semestre</option>
+                      <option value="3">3° Semestre</option>
+                      <option value="4">4° Semestre</option>
+                      <option value="5">5° Semestre</option>
+                    </select>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Reset filter helpers */}
+              {(searchQuery || selectedCareerFilter !== 'ALL' || selectedStatusFilter !== 'ALL' || selectedSemesterFilter !== 'ALL') && (
+                <div className="flex items-center gap-2 text-xs text-blue-600 font-bold bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 self-start">
+                  <span>Filtros activos. Se muestran {filteredStudents.length} estudiantes.</span>
+                  <button 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCareerFilter('ALL');
+                      setSelectedStatusFilter('ALL');
+                      setSelectedSemesterFilter('ALL');
+                    }}
+                    className="underline hover:text-blue-800 ml-1 cursor-pointer"
+                  >
+                    Restaurar filtros
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Students Grid Layout */}
+            <div className="bg-white border border-slate-200/80 rounded-[2rem] p-6" id="students-table-card">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 text-[10px] uppercase tracking-wider font-extrabold">
+                      <th className="py-3.5 px-4">Estudiante</th>
+                      <th className="py-3.5 px-4">RUT</th>
+                      <th className="py-3.5 px-4">Carrera Técnica</th>
+                      <th className="py-3.5 px-4 text-center">Asistencia</th>
+                      <th className="py-3.5 px-4 text-center">Promedio</th>
+                      <th className="py-3.5 px-4 text-right">Estatus</th>
+                      <th className="py-3.5 px-4 text-right">Ficha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-400 text-sm font-medium">
+                          No se encontraron estudiantes que coincidan con los filtros ingresados.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStudents.map(s => {
+                        const career = CAREERS.find(c => c.id === s.careerId);
+                        const avg = calculateGPA(s.grades);
+                        
+                        return (
+                          <tr 
+                            key={s.id} 
+                            className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                            onClick={() => setSelectedStudentId(s.id)}
+                          >
+                            <td className="py-4 px-4">
+                              <div>
+                                <div className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">
+                                  {s.name}
+                                </div>
+                                <div className="text-[10px] text-slate-400 mt-0.5">{s.email}</div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-xs font-mono text-slate-600">{s.rut}</td>
+                            <td className="py-4 px-4">
+                              <span className="text-xs text-slate-700 font-medium block">{career?.name || s.careerId}</span>
+                              <span className="text-[10px] text-slate-400">Semestre {s.semester}</span>
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              <span className={`text-xs font-bold ${s.attendance < 75 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                {s.attendance}%
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              <span className={`text-sm font-black ${
+                                avg < 4.0 ? 'text-rose-600' : 'text-slate-800'
+                              }`}>
+                                {avg}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide inline-block ${
+                                s.status === 'Regular' ? 'bg-emerald-100 text-emerald-800' :
+                                s.status === 'Alerta de Riesgo' ? 'bg-amber-100 text-amber-800' :
+                                s.status === 'Suspendido' ? 'bg-slate-100 text-slate-600' : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {s.status}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedStudentId(s.id);
+                                }}
+                                className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg inline-block hover:scale-105 transition-transform"
+                                title="Abrir Ficha de Notas y Rendimiento"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: REPORTS CENTER & PREVIEW */}
+        {activeTab === 'reportes' && (
+          <div className="space-y-6" id="view-reportes">
+            
+            {/* Split layout: Risk report summary & Scatter Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Box 1: Core Dropout Stats Summary */}
+              <div className="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-lg mb-2">Resumen de Alertas Académicas</h3>
+                  <p className="text-xs text-slate-500 mb-6">Mecanismos institucionales de prevención de deserción por rendimiento.</p>
+
+                  <div className="space-y-4">
+                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl">
+                      <div className="text-2xl font-black text-rose-800">{studentsAtRiskCount} Estudiantes</div>
+                      <div className="text-xs text-rose-700 font-semibold mt-1">Con alerta académica vigente</div>
+                      <p className="text-[10px] text-rose-600/80 mt-1.5">Representa el {Math.round((studentsAtRiskCount / students.length) * 100)}% de la matrícula total del CFT.</p>
+                    </div>
+
+                    <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                      <div className="text-2xl font-black text-emerald-800">84.2%</div>
+                      <div className="text-xs text-emerald-700 font-semibold mt-1">Tasa de Aprobación de Ramos</div>
+                      <p className="text-[10px] text-emerald-600/80 mt-1.5">Asistencia regular promedio: 87% de asistencia media.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <button 
+                    onClick={() => setIsReportPrinterPreviewOpen(true)}
+                    className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Vista de Impresión / Reporte Oficial
+                  </button>
+                </div>
+              </div>
+
+              {/* Box 2: Attendance vs. Grades Scatter plot (Custom Responsive SVG) (Span 2) */}
+              <div className="bg-white border border-slate-200/80 rounded-[2rem] p-6 lg:col-span-2 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-extrabold text-slate-900 text-lg">Distribución de Alumnos: Asistencia vs Notas</h3>
+                    <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                      Gráfico de Dispersión
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-6">Visualiza la correlación entre la asistencia (%) y las calificaciones (1.0-7.0) para detectar zonas de abandono.</p>
+                </div>
+
+                {/* Custom Beautiful SVG Scatter plot */}
+                <div className="flex-1 min-h-[220px] relative mt-4">
+                  <div className="absolute left-0 top-0 h-full w-full flex flex-col justify-between">
+                    
+                    {/* SVG Graphic with axes */}
+                    <svg className="w-full h-48 overflow-visible" viewBox="0 0 500 200">
+                      {/* Grid lines */}
+                      <line x1="40" y1="20" x2="480" y2="20" stroke="#f1f5f9" strokeWidth="1" />
+                      <line x1="40" y1="60" x2="480" y2="60" stroke="#f1f5f9" strokeWidth="1" />
+                      <line x1="40" y1="100" x2="480" y2="100" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                      <line x1="40" y1="140" x2="480" y2="140" stroke="#f1f5f9" strokeWidth="1" />
+                      <line x1="40" y1="180" x2="480" y2="180" stroke="#cbd5e1" strokeWidth="1.5" />
+                      <line x1="40" y1="20" x2="40" y2="180" stroke="#cbd5e1" strokeWidth="1.5" />
+
+                      {/* X and Y labels */}
+                      <text x="15" y="25" className="text-[9px] fill-slate-400 font-bold">7.0</text>
+                      <text x="15" y="105" className="text-[9px] fill-slate-400 font-bold">4.0</text>
+                      <text x="15" y="183" className="text-[9px] fill-slate-400 font-bold">1.0</text>
+                      
+                      <text x="40" y="195" className="text-[9px] fill-slate-400 font-bold">0%</text>
+                      <text x="260" y="195" className="text-[9px] fill-slate-400 font-bold">50%</text>
+                      <text x="470" y="195" className="text-[9px] fill-slate-400 font-bold">100%</text>
+
+                      {/* Passing Grade threshold line */}
+                      <line x1="40" y1="100" x2="480" y2="100" stroke="#ef4444" strokeWidth="1" strokeDasharray="4 4" />
+                      <text x="350" y="95" className="text-[8px] fill-rose-500 font-bold">Umbral de Aprobación (4.0)</text>
+
+                      {/* Scatter Dots representing real students in database */}
+                      {students.map((student) => {
+                        const avg = calculateGPA(student.grades);
+                        // Map attendance 0-100% to X 40-480
+                        const x = 40 + (student.attendance / 100) * 440;
+                        // Map grade 1.0-7.0 to Y 180-20 (invert)
+                        // Formula: Y = 180 - ((grade - 1.0) / 6.0) * 160
+                        const y = 180 - ((avg - 1.0) / 6.0) * 160;
+
+                        // Dot color based on risk status
+                        let color = '#3b82f6'; // blue
+                        if (student.status === 'Alerta de Riesgo') color = '#f59e0b'; // amber
+                        if (student.status === 'Retirado') color = '#ef4444'; // rose
+
+                        return (
+                          <g key={student.id} className="cursor-pointer group/dot">
+                            <circle 
+                              cx={x} 
+                              cy={y} 
+                              r={student.status === 'Retirado' ? '4' : '5'} 
+                              fill={color} 
+                              stroke="#ffffff" 
+                              strokeWidth="1.5"
+                              className="transition-all hover:scale-150 duration-200"
+                            />
+                            {/* Dot tooltip label overlay on SVG */}
+                            <g className="opacity-0 group-hover/dot:opacity-100 pointer-events-none transition-opacity duration-200 z-30">
+                              <rect x={Math.min(380, x - 50)} y={y - 35} width="110" height="28" rx="4" fill="#0f172a" />
+                              <text x={Math.min(380, x - 50) + 5} y={y - 23} className="text-[8px] fill-white font-bold">{student.name.substring(0, 18)}</text>
+                              <text x={Math.min(380, x - 50) + 5} y={y - 13} className="text-[8px] fill-slate-300">Prom: {avg} | Asis: {student.attendance}%</text>
+                            </g>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold border-t border-slate-100 pt-4 px-1">
+                  <div className="flex gap-4">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Regular
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Alerta de Riesgo
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Retirado / Deserción
+                    </span>
+                  </div>
+                  <span>Pasa el cursor sobre un punto para identificar al estudiante</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Query Builder with Result Export */}
+            <div className="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-lg">Exportador de Reportes Curriculares</h3>
+                  <p className="text-xs text-slate-500">Aplica filtros cruzados rápidos y descarga la base filtrada en formato CSV para Excel.</p>
+                </div>
+                <button 
+                  onClick={handleExportCSV}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all"
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> Descargar CSV Filtrado
+                </button>
+              </div>
+
+              {/* Grid of criteria selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl mb-6">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Especialidad</label>
+                  <select 
+                    value={selectedCareerFilter} 
+                    onChange={(e) => setSelectedCareerFilter(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-hidden"
+                  >
+                    <option value="ALL">Todas las Especialidades</option>
+                    {CAREERS.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estatus Estudiante</label>
+                  <select 
+                    value={selectedStatusFilter} 
+                    onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-hidden"
+                  >
+                    <option value="ALL">Cualquier Estatus</option>
+                    <option value="Regular">Alumnos Regular</option>
+                    <option value="Alerta de Riesgo">Alerta de Riesgo</option>
+                    <option value="Suspendido">Semestre Suspendido</option>
+                    <option value="Retirado">Retirado / Desertor</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Semestre Lectivo</label>
+                  <select 
+                    value={selectedSemesterFilter} 
+                    onChange={(e) => setSelectedSemesterFilter(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-hidden"
+                  >
+                    <option value="ALL">Todos los semestres</option>
+                    <option value="1">1° Semestre</option>
+                    <option value="2">2° Semestre</option>
+                    <option value="3">3° Semestre</option>
+                    <option value="4">4° Semestre</option>
+                    <option value="5">5° Semestre</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button 
+                    onClick={() => {
+                      setSelectedCareerFilter('ALL');
+                      setSelectedStatusFilter('ALL');
+                      setSelectedSemesterFilter('ALL');
+                      setSearchQuery('');
+                    }}
+                    className="w-full py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-all text-center"
+                  >
+                    Limpiar Filtros
+                  </button>
+                </div>
+              </div>
+
+              {/* Table of query results */}
+              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 text-[9px] uppercase tracking-wider font-extrabold sticky top-0 bg-white">
+                      <th className="py-2 px-3">Nombre</th>
+                      <th className="py-2 px-3">RUT</th>
+                      <th className="py-2 px-3">Especialidad</th>
+                      <th className="py-2 px-3 text-center">Semestre</th>
+                      <th className="py-2 px-3 text-center">Asistencia</th>
+                      <th className="py-2 px-3 text-center">Promedio</th>
+                      <th className="py-2 px-3 text-right">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map(s => {
+                      const career = CAREERS.find(c => c.id === s.careerId);
+                      const avg = calculateGPA(s.grades);
+                      return (
+                        <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50 text-xs">
+                          <td className="py-2 px-3 font-medium text-slate-800">{s.name}</td>
+                          <td className="py-2 px-3 font-mono text-slate-500">{s.rut}</td>
+                          <td className="py-2 px-3 text-slate-600">{career?.name || s.careerId}</td>
+                          <td className="py-2 px-3 text-center font-semibold">{s.semester}°</td>
+                          <td className="py-2 px-3 text-center font-bold">{s.attendance}%</td>
+                          <td className="py-2 px-3 text-center font-bold text-blue-600">{avg}</td>
+                          <td className="py-2 px-3 text-right">
+                            <span className="font-semibold text-[10px] uppercase">{s.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      {/* MODAL 1: NEW STUDENT REGISTRATION MODAL */}
+      {isNewStudentModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="new-student-modal">
+          <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up">
+            
+            <div className="bg-slate-900 text-white px-6 py-5 flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-base tracking-tight flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-blue-400" />
+                  Matricular Nuevo Estudiante
+                </h3>
+                <p className="text-slate-400 text-xs mt-0.5">Ingresa los datos reglamentarios para el registro oficial.</p>
+              </div>
+              <button 
+                onClick={() => setIsNewStudentModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddNewStudent} className="p-6 space-y-4">
+              
+              <div>
+                <label className="block text-slate-500 font-bold text-[10px] uppercase tracking-wider mb-1">Nombre Completo *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="Ej: Sofia Araya Villalobos"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-bold text-[10px] uppercase tracking-wider mb-1">RUT Nacional *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newStudentRut}
+                    onChange={(e) => setNewStudentRut(e.target.value)}
+                    placeholder="Ej: 19.876.543-K"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-bold text-[10px] uppercase tracking-wider mb-1">Carrera Técnica *</label>
+                  <select 
+                    value={newStudentCareer}
+                    onChange={(e) => setNewStudentCareer(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden font-semibold text-slate-700"
+                  >
+                    {CAREERS.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-bold text-[10px] uppercase tracking-wider mb-1">Semestre de Ingreso</label>
+                  <select 
+                    value={newStudentSemester}
+                    onChange={(e) => setNewStudentSemester(Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                  >
+                    <option value="1">1° Semestre</option>
+                    <option value="2">2° Semestre</option>
+                    <option value="3">3° Semestre</option>
+                    <option value="4">4° Semestre</option>
+                    <option value="5">5° Semestre</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-bold text-[10px] uppercase tracking-wider mb-1">Asistencia Inicial (%)</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="100"
+                    value={newStudentAttendance}
+                    onChange={(e) => setNewStudentAttendance(Number(e.target.value))}
+                    placeholder="100"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-500 font-bold text-[10px] uppercase tracking-wider mb-1">Correo Electrónico</label>
+                  <input 
+                    type="email" 
+                    value={newStudentEmail}
+                    onChange={(e) => setNewStudentEmail(e.target.value)}
+                    placeholder="s.araya@cftacademia.cl"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-bold text-[10px] uppercase tracking-wider mb-1">Número de Celular</label>
+                  <input 
+                    type="text" 
+                    value={newStudentPhone}
+                    onChange={(e) => setNewStudentPhone(e.target.value)}
+                    placeholder="+56 9 8765 4321"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 italic">
+                * Al matricular al estudiante se le asignarán calificaciones basales automáticas aleatorias correspondientes al plan curricular de la carrera seleccionada.
+              </p>
+
+              <div className="pt-4 flex gap-3 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsNewStudentModalOpen(false)}
+                  className="flex-1 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold transition-all text-center"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-100 transition-all text-center"
+                >
+                  Confirmar Matrícula
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SLIDE-UP DRAWER: STUDENT FILE DETAILS & GRADES CALCULATOR */}
+      {selectedStudent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-end z-50 animate-fade-in" id="student-detail-drawer">
+          <div className="bg-white w-full max-w-2xl h-full shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-left p-6 md:p-8">
+            
+            {/* Drawer Header */}
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-slate-400 text-xs font-bold tracking-widest uppercase">Expediente Académico del Alumno</span>
+                <button 
+                  onClick={() => setSelectedStudentId(null)}
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* General card of selected student */}
+              <div className="bg-slate-950 text-white rounded-[2rem] p-6 relative overflow-hidden mb-6 shadow-md shadow-slate-950/20">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <span className="bg-blue-600 text-white text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-md">
+                      {CAREERS.find(c => c.id === selectedStudent.careerId)?.name || selectedStudent.careerId}
+                    </span>
+                    <select
+                      value={selectedStudent.status}
+                      onChange={(e) => handleStatusChange(selectedStudent.id, e.target.value as Student['status'])}
+                      className="bg-slate-800 text-white border-0 text-xs font-bold px-2.5 py-1 rounded-md focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="Regular">Regular</option>
+                      <option value="Alerta de Riesgo">Alerta de Riesgo</option>
+                      <option value="Suspendido">Suspendido</option>
+                      <option value="Retirado">Retirado / Desertor</option>
+                    </select>
+                  </div>
+
+                  <h3 className="text-xl font-bold tracking-tight text-white mb-1">{selectedStudent.name}</h3>
+                  <div className="grid grid-cols-2 gap-4 text-xs mt-4 text-slate-300">
+                    <div>
+                      <span className="text-slate-500 block text-[9px] uppercase tracking-wider font-bold">RUT Nacional</span>
+                      <span className="font-mono">{selectedStudent.rut}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[9px] uppercase tracking-wider font-bold">Semestre Lectivo</span>
+                      <span>{selectedStudent.semester}° Semestre</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Contact Info */}
+              <div className="grid grid-cols-2 gap-4 mb-8 bg-slate-50 p-4 border border-slate-100 rounded-2xl text-xs">
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span className="truncate" title={selectedStudent.email}>{selectedStudent.email}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>{selectedStudent.phone}</span>
+                </div>
+              </div>
+
+              {/* Interactive Grades Calculator Grid */}
+              <div className="space-y-4 mb-8" id="grades-calculator-module">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                    <Calculator className="w-4 h-4 text-blue-500" />
+                    Ingreso y Modificación de Notas
+                  </h4>
+                  <span className="text-xs text-slate-500">Escala de 1.0 a 7.0</span>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
+                  <div className="grid grid-cols-3 bg-slate-50 px-4 py-2 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <div className="col-span-2">Asignatura Curricular</div>
+                    <div className="text-center">Calificación (Nota)</div>
+                  </div>
+
+                  <div className="divide-y divide-slate-50" id="grades-calculator-rows">
+                    {Object.keys(selectedStudent.grades).map((subject) => {
+                      const score = selectedStudent.grades[subject];
+                      return (
+                        <div key={subject} className="grid grid-cols-3 px-4 py-3 items-center text-xs">
+                          <div className="col-span-2 font-medium text-slate-700">{subject}</div>
+                          <div className="flex justify-center">
+                            <input 
+                              type="number" 
+                              step="0.1" 
+                              min="1.0" 
+                              max="7.0"
+                              value={score}
+                              onChange={(e) => handleGradeChange(selectedStudent.id, subject, e.target.value)}
+                              className={`w-16 px-2 py-1 bg-slate-50 border rounded-lg text-center font-bold text-sm focus:outline-hidden focus:ring-1 focus:ring-blue-500 ${
+                                score < 4.0 ? 'border-rose-300 text-rose-600 bg-rose-50' : 'border-slate-200 text-slate-800'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dynamic GPA recalculation row */}
+                  <div className="bg-slate-50 px-4 py-3 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span className="text-slate-600 uppercase">Promedio General Resultante:</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-base font-black ${
+                        calculateGPA(selectedStudent.grades) < 4.0 ? 'text-rose-600' : 'text-blue-600'
+                      }`}>
+                        {calculateGPA(selectedStudent.grades)}
+                      </span>
+                      <span className="text-slate-400">/ 7.0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendance quick adjustment */}
+              <div className="mb-8 p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 text-xs">Ajustar Porcentaje de Asistencia</h4>
+                  <p className="text-[10px] text-slate-500">Un nivel inferior al 75% activará automáticamente la Alerta de Deserción.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="100"
+                    value={selectedStudent.attendance}
+                    onChange={(e) => handleAttendanceChange(selectedStudent.id, Number(e.target.value))}
+                    className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-center font-bold text-xs"
+                  />
+                  <span className="text-xs font-bold text-slate-500">%</span>
+                </div>
+              </div>
+
+              {/* Support logs for academic retention */}
+              <div className="space-y-4">
+                <h4 className="font-bold text-slate-900 text-sm">Bitácora de Acompañamiento y Retención</h4>
+                <div className="space-y-2 max-h-[160px] overflow-y-auto" id="retention-logs">
+                  {selectedStudent.supportLogs.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No se han registrado medidas de intervención académica para este alumno.</p>
+                  ) : (
+                    selectedStudent.supportLogs.map((log, idx) => (
+                      <div key={idx} className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs text-slate-700 flex gap-2">
+                        <span className="text-blue-600 font-bold shrink-0">•</span>
+                        <span>{log}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={tempSupportLog}
+                    onChange={(e) => setTempSupportLog(e.target.value)}
+                    placeholder="Registrar nueva acción de acompañamiento..."
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button 
+                    onClick={() => handleAddSupportLog(selectedStudent.id)}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shrink-0"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Close action */}
+            <div className="pt-6 border-t border-slate-100 mt-6">
+              <button 
+                onClick={() => setSelectedStudentId(null)}
+                className="w-full py-3 bg-slate-950 hover:bg-slate-900 text-white font-bold rounded-xl text-xs text-center transition-all"
+              >
+                Guardar y Cerrar Ficha
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: PRINTER-FRIENDLY FORMAL ACADEMIC REPORT */}
+      {isReportPrinterPreviewOpen && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto" id="print-modal-overlay">
+          <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-2xl w-full max-w-4xl p-8 my-8 relative overflow-hidden" id="reporte-oficial-cft">
+            
+            {/* Header controls inside modal */}
+            <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 print:hidden">
+              <span className="text-xs text-slate-500 font-bold">VISTA PREVIA DEL REPORTE ACADÉMICO OFICIAL</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                >
+                  <Printer className="w-4 h-4" /> Imprimir Documento
+                </button>
+                <button 
+                  onClick={() => setIsReportPrinterPreviewOpen(false)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+
+            {/* Official Report Template */}
+            <div className="space-y-6 text-slate-900">
+              
+              {/* Report Header Logo & Stamps */}
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-900 text-white font-black flex items-center justify-center rounded-xl text-lg">C</div>
+                  <div>
+                    <h1 className="text-xl font-extrabold tracking-tight text-slate-950 uppercase">CENTRO DE FORMACIÓN TÉCNICA ACADEMIA</h1>
+                    <p className="text-[9px] text-slate-500 tracking-wider">Acreditado por la Comisión Nacional de Acreditación (CNA) • Chile</p>
+                  </div>
+                </div>
+                <div className="text-right text-xs">
+                  <p className="font-bold text-slate-700">Folio: REP-2026-991</p>
+                  <p className="text-slate-500">Fecha de Emisión: {new Date().toLocaleDateString('es-CL')}</p>
+                </div>
+              </div>
+
+              {/* Title Section */}
+              <div className="border-t-2 border-b-2 border-slate-900 py-3 text-center">
+                <h2 className="text-base font-black tracking-widest uppercase">CONSOLIDADO ACADÉMICO GENERAL - SEGUNDO SEMESTRE 2026</h2>
+                <p className="text-[10px] text-slate-500 mt-1">Sistemas de Registro de Matrículas, Deserción Escolar y Monitoreo Social CFT Academia</p>
+              </div>
+
+              {/* High level Metrics Summary Table */}
+              <div className="grid grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="text-center">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Matrícula General</span>
+                  <span className="text-lg font-black text-slate-900">{totalEnrolled}</span>
+                  <span className="text-[9px] text-slate-400 block mt-0.5">Estudiantes Regulares</span>
+                </div>
+                <div className="text-center border-l border-slate-200">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Tasa de Deserción</span>
+                  <span className="text-lg font-black text-rose-700">{overallDropoutRate}%</span>
+                  <span className="text-[9px] text-slate-400 block mt-0.5">Histórico Acumulado</span>
+                </div>
+                <div className="text-center border-l border-slate-200">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Promedio Calificaciones</span>
+                  <span className="text-lg font-black text-blue-900">{overallAverageGPA}</span>
+                  <span className="text-[9px] text-slate-400 block mt-0.5">Escala de 1.0 a 7.0</span>
+                </div>
+                <div className="text-center border-l border-slate-200">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Estudiantes en Alerta</span>
+                  <span className="text-lg font-black text-amber-700">{studentsAtRiskCount}</span>
+                  <span className="text-[9px] text-slate-400 block mt-0.5">Acciones de Acompañamiento</span>
+                </div>
+              </div>
+
+              {/* Sub table metrics by technical career */}
+              <div className="space-y-2">
+                <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900">1. Desglose Estadístico por Especialidad Técnica</h3>
+                <table className="w-full text-left text-[11px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-900 bg-slate-900 text-white font-bold uppercase text-[9px]">
+                      <th className="py-2 px-3">Código</th>
+                      <th className="py-2 px-3">Especialidad CFT</th>
+                      <th className="py-2 px-3 text-center">Matrícula Activa</th>
+                      <th className="py-2 px-3 text-center">Cupos Grales</th>
+                      <th className="py-2 px-3 text-center">Asistencia Gral</th>
+                      <th className="py-2 px-3 text-center">Notas Promedio</th>
+                      <th className="py-2 px-3 text-right">Tasa Deserción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {careerStats.map(c => (
+                      <tr key={c.id} className="border-b border-slate-200">
+                        <td className="py-2 px-3 font-bold font-mono">{c.id}</td>
+                        <td className="py-2 px-3 font-semibold text-slate-800">{c.name}</td>
+                        <td className="py-2 px-3 text-center font-bold">{c.studentCount}</td>
+                        <td className="py-2 px-3 text-center text-slate-500">{c.capacity}</td>
+                        <td className="py-2 px-3 text-center font-bold">{c.avgAttendance}%</td>
+                        <td className="py-2 px-3 text-center font-extrabold text-blue-700">{c.avgGpa}</td>
+                        <td className="py-2 px-3 text-right font-bold text-rose-700">{c.dropoutRate}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Risk students list section in print */}
+              <div className="space-y-2 pt-4">
+                <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900">2. Alumnos Vigentes bajo Estado de Alerta y Riesgo Académico</h3>
+                <table className="w-full text-left text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-300 font-bold text-slate-600">
+                      <th className="py-1 px-2">Nombre Alumno</th>
+                      <th className="py-1 px-2">RUT</th>
+                      <th className="py-1 px-2">Carrera</th>
+                      <th className="py-1 px-2 text-center">Asistencia</th>
+                      <th className="py-1 px-2 text-center">Promedio</th>
+                      <th className="py-1 px-2 text-right">Última Acción Registrada</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.filter(s => s.status === 'Alerta de Riesgo').map(s => {
+                      const career = CAREERS.find(c => c.id === s.careerId);
+                      const avg = calculateGPA(s.grades);
+                      const lastLog = s.supportLogs[s.supportLogs.length - 1] || 'Sin bitácora inicial';
+                      return (
+                        <tr key={s.id} className="border-b border-slate-100">
+                          <td className="py-1.5 px-2 font-bold">{s.name}</td>
+                          <td className="py-1.5 px-2 font-mono text-slate-500">{s.rut}</td>
+                          <td className="py-1.5 px-2">{career?.name || s.careerId}</td>
+                          <td className="py-1.5 px-2 text-center font-bold text-rose-600">{s.attendance}%</td>
+                          <td className="py-1.5 px-2 text-center font-bold">{avg}</td>
+                          <td className="py-1.5 px-2 text-right text-slate-600 truncate max-w-[200px]">{lastLog}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Signatures & Certification stamps */}
+              <div className="pt-16 grid grid-cols-2 gap-8 text-center text-xs">
+                <div>
+                  <div className="border-t border-slate-400 w-48 mx-auto mt-8"></div>
+                  <p className="font-bold text-slate-800 mt-2">Firma Encargado de Docencia</p>
+                  <p className="text-[10px] text-slate-400">Dirección Académica CFT Academia</p>
+                </div>
+                <div>
+                  <div className="border-t border-slate-400 w-48 mx-auto mt-8"></div>
+                  <p className="font-bold text-slate-800 mt-2">Firma Coordinador de Retención</p>
+                  <p className="text-[10px] text-slate-400">Departamento de Apoyo Estudiantil</p>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
