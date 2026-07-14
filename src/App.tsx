@@ -367,7 +367,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'carreras' | 'estudiantes' | 'reportes'>('dashboard');
   
   // App-wide state
-  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
+  const [students, setStudents] = useState<Student[]>([]);
   const [careersList, setCareersList] = useState<Career[]>(CAREERS);
 
   // Supabase Syncing and UI Helper States
@@ -1041,6 +1041,213 @@ export default function App() {
     });
     return Math.max(...values, 1);
   }, [careerStats, dashboardChartMetric]);
+
+  // Blocking checks for Supabase-only enforcement
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex items-center justify-center p-4 md:p-8 font-sans" id="supabase-unconfigured-screen">
+        <div className="max-w-3xl w-full bg-[#151D30] border border-slate-800 rounded-[2.5rem] p-6 md:p-10 shadow-2xl relative overflow-hidden">
+          {/* Decorative glows */}
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+          <div className="relative space-y-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-2xl shadow-lg shadow-blue-500/30">C</div>
+                <div>
+                  <h1 className="text-xl font-extrabold tracking-tight text-white">
+                    CFT Academia
+                  </h1>
+                  <p className="text-[11px] tracking-wider text-slate-400 uppercase font-bold">Gestión e Información Escolar</p>
+                </div>
+              </div>
+              <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Conexión Supabase Requerida
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">El modo local ha sido eliminado</h2>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Para asegurar la persistencia real, integridad de los datos académicos y evitar la pérdida de registros, la aplicación ahora requiere exclusivamente una conexión activa a <strong>Supabase (PostgreSQL)</strong>. No se permite el almacenamiento demo local.
+              </p>
+            </div>
+
+            {/* Config steps */}
+            <div className="space-y-6 bg-[#0E1322] border border-slate-800/80 rounded-3xl p-5 md:p-7">
+              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest border-b border-slate-800 pb-3 flex items-center gap-2">
+                <Database className="w-4 h-4 text-blue-400" />
+                Guía de Conexión en 3 Pasos
+              </h3>
+
+              <div className="space-y-5">
+                <div className="flex gap-4 items-start">
+                  <span className="w-6 h-6 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border border-blue-500/20">1</span>
+                  <div>
+                    <h4 className="font-bold text-sm text-white">Cree su proyecto en Supabase</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Regístrese gratis en <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline inline-flex items-center gap-0.5">supabase.com</a> y cree una base de datos PostgreSQL.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 items-start">
+                  <span className="w-6 h-6 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border border-blue-500/20">2</span>
+                  <div className="w-full space-y-2">
+                    <h4 className="font-bold text-sm text-white">Inicialice el Esquema de la Tabla</h4>
+                    <p className="text-xs text-slate-400">Vaya al panel <strong>SQL Editor</strong> en Supabase, pegue el siguiente script y presione <strong>Run</strong>:</p>
+                    
+                    <div className="bg-slate-950 rounded-2xl p-4 relative font-mono text-[11px] text-slate-300 border border-slate-800/80 shadow-inner">
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(SUPABASE_SETUP_SQL);
+                          setCopiedSql(true);
+                          setTimeout(() => setCopiedSql(false), 2000);
+                        }}
+                        className="absolute right-3 top-3 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg flex items-center gap-1.5 transition-all text-xs font-bold border border-slate-700/50"
+                      >
+                        {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedSql ? '¡Copiado!' : 'Copiar SQL'}</span>
+                      </button>
+                      <pre className="max-h-[140px] overflow-y-auto pr-2 pt-6 select-all scrollbar-thin text-left whitespace-pre-wrap leading-relaxed">
+                        {SUPABASE_SETUP_SQL}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 items-start">
+                  <span className="w-6 h-6 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border border-blue-500/20">3</span>
+                  <div>
+                    <h4 className="font-bold text-sm text-white">Defina las Variables de Entorno</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Agregue las siguientes variables en su archivo de configuración local u hospedaje:</p>
+                    <div className="mt-2.5 bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-1.5 font-mono text-xs text-slate-300">
+                      <p className="text-blue-400"><span className="text-slate-500">VITE_SUPABASE_URL</span>=tu_project_url_aqui</p>
+                      <p className="text-blue-400"><span className="text-slate-500">VITE_SUPABASE_ANON_KEY</span>=tu_anon_public_key_aqui</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <p className="text-xs text-slate-400">Una vez guardadas las variables, recargue la página.</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Re-comprobar Conexión
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (supabaseError) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex items-center justify-center p-4 md:p-8 font-sans" id="supabase-error-screen">
+        <div className="max-w-3xl w-full bg-[#151D30] border border-slate-800 rounded-[2.5rem] p-6 md:p-10 shadow-2xl relative overflow-hidden">
+          {/* Decorative glows */}
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-rose-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+          <div className="relative space-y-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center font-black text-white text-2xl shadow-lg shadow-rose-500/30">C</div>
+                <div>
+                  <h1 className="text-xl font-extrabold tracking-tight text-white">
+                    CFT Academia
+                  </h1>
+                  <p className="text-[11px] tracking-wider text-slate-400 uppercase font-bold">Gestión e Información Escolar</p>
+                </div>
+              </div>
+              <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
+                Error de Sincronización Supabase
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">Fallo en la conexión de base de datos</h2>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Se detectaron credenciales de Supabase configuradas, pero se produjo un error al consultar o sembrar la tabla de estudiantes. Esto suele ocurrir si la tabla <strong>estudiantes</strong> (o <strong>ESTUDIANTES</strong>) no ha sido creada o si las políticas de acceso (RLS) están bloqueando la consulta.
+              </p>
+
+              {/* Error Detail Box */}
+              <div className="bg-rose-950/30 border border-rose-500/20 rounded-2xl p-4 font-mono text-xs text-rose-300">
+                <p className="font-bold uppercase text-[10px] tracking-wider text-rose-400 mb-1 font-sans">Detalle del Error:</p>
+                <p>{supabaseError}</p>
+              </div>
+            </div>
+
+            {/* Resolve steps */}
+            <div className="space-y-6 bg-[#0E1322] border border-slate-800/80 rounded-3xl p-5 md:p-7">
+              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest border-b border-slate-800 pb-3 flex items-center gap-2">
+                <Database className="w-4 h-4 text-blue-400" />
+                ¿Cómo solucionar este error?
+              </h3>
+
+              <div className="space-y-5 text-slate-300 text-xs">
+                <p className="leading-relaxed">
+                  Para asegurar que la tabla esté creada con la estructura correcta y el RUT como clave primaria, ejecute el siguiente script SQL completo en el panel <strong>SQL Editor</strong> de su proyecto Supabase:
+                </p>
+
+                <div className="bg-slate-950 rounded-2xl p-4 relative font-mono text-[11px] text-slate-300 border border-slate-800/80 shadow-inner">
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(SUPABASE_SETUP_SQL);
+                      setCopiedSql(true);
+                      setTimeout(() => setCopiedSql(false), 2000);
+                    }}
+                    className="absolute right-3 top-3 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg flex items-center gap-1.5 transition-all text-xs font-bold border border-slate-700/50"
+                  >
+                    {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedSql ? '¡Copiado!' : 'Copiar SQL'}</span>
+                  </button>
+                  <pre className="max-h-[160px] overflow-y-auto pr-2 pt-6 select-all scrollbar-thin text-left whitespace-pre-wrap leading-relaxed">
+                    {SUPABASE_SETUP_SQL}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <p className="text-xs text-slate-400">Verifique su SQL Editor en Supabase y luego reintente.</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Reintentar Conexión
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSyncing && students.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex items-center justify-center p-4 text-center font-sans">
+        <div className="max-w-md w-full space-y-6">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center font-black text-white text-3xl animate-bounce shadow-lg shadow-blue-500/20">C</div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-white tracking-tight">Sincronizando con Supabase</h3>
+            <p className="text-slate-400 text-xs">Cargando registros académicos y notas en tiempo real...</p>
+          </div>
+          <div className="flex justify-center">
+            <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-50 text-slate-900 w-full min-h-screen flex flex-col md:flex-row overflow-x-hidden font-sans antialiased" id="cft-root-container">
