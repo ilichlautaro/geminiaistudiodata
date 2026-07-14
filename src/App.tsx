@@ -1,4 +1,4 @@
-import React, { useState, useMemo, FormEvent } from 'react';
+import React, { useState, useMemo, FormEvent, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -24,8 +24,13 @@ import {
   Printer,
   ChevronRight,
   TrendingUp,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Database,
+  CloudLightning,
+  RefreshCw,
+  Copy
 } from 'lucide-react';
+import { supabase, isSupabaseConfigured, SUPABASE_SETUP_SQL } from './lib/supabase';
 
 // Types & interfaces
 interface SubjectGrades {
@@ -349,6 +354,134 @@ export default function App() {
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
   const [careersList, setCareersList] = useState<Career[]>(CAREERS);
 
+  // Supabase Syncing and UI Helper States
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [supabaseError, setSupabaseError] = useState<string | null>(null);
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  // Data mapping helper functions
+  const mapDbStudentToJs = (dbStudent: any): Student => ({
+    id: dbStudent.id,
+    name: dbStudent.name,
+    rut: dbStudent.rut,
+    careerId: dbStudent.career_id,
+    semester: dbStudent.semester,
+    attendance: dbStudent.attendance,
+    status: dbStudent.status,
+    grades: dbStudent.grades,
+    email: dbStudent.email,
+    phone: dbStudent.phone,
+    supportLogs: dbStudent.support_logs || []
+  });
+
+  const mapJsStudentToDb = (s: Student) => ({
+    id: s.id,
+    name: s.name,
+    rut: s.rut,
+    career_id: s.careerId,
+    semester: s.semester,
+    attendance: s.attendance,
+    status: s.status,
+    grades: s.grades,
+    email: s.email,
+    phone: s.phone,
+    support_logs: s.supportLogs
+  });
+
+  // Fetch and Sync with Supabase on mount
+  useEffect(() => {
+    async function syncWithSupabase() {
+      if (!isSupabaseConfigured || !supabase) {
+        console.log("Supabase no configurado. Utilizando base de datos local en memoria.");
+        return;
+      }
+
+      setIsSyncing(true);
+      setSupabaseError(null);
+
+      try {
+        // 1. Fetch & Sync Careers
+        const { data: dbCareers, error: careersError } = await supabase
+          .from('careers')
+          .select('*');
+
+        if (careersError) throw careersError;
+
+        let activeCareers = dbCareers || [];
+
+        // If no careers exist in remote database, seed them
+        if (activeCareers.length === 0) {
+          console.log("Sembrando catálogo de carreras en Supabase...");
+          const mappedCareers = CAREERS.map(c => ({
+            id: c.id,
+            name: c.name,
+            capacity: c.capacity,
+            duration_semesters: c.durationSemesters,
+            subjects: c.subjects,
+            color: c.color,
+            text_color: c.textColor,
+            bg_light: c.bgLight
+          }));
+
+          const { error: seedCareersError } = await supabase
+            .from('careers')
+            .insert(mappedCareers);
+
+          if (seedCareersError) throw seedCareersError;
+          activeCareers = mappedCareers;
+        }
+
+        // Map careers back to JS representation
+        const jsCareers: Career[] = activeCareers.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          capacity: c.capacity,
+          durationSemesters: c.duration_semesters,
+          subjects: c.subjects,
+          color: c.color,
+          textColor: c.text_color,
+          bgLight: c.bg_light
+        }));
+        setCareersList(jsCareers);
+
+        // 2. Fetch & Sync Students
+        const { data: dbStudents, error: studentsError } = await supabase
+          .from('students')
+          .select('*');
+
+        if (studentsError) throw studentsError;
+
+        let activeStudents = dbStudents || [];
+
+        // If no students exist, seed them
+        if (activeStudents.length === 0) {
+          console.log("Sembrando estudiantes iniciales en Supabase...");
+          const dbSeedStudents = INITIAL_STUDENTS.map(mapJsStudentToDb);
+          
+          const { error: seedStudentsError } = await supabase
+            .from('students')
+            .insert(dbSeedStudents);
+
+          if (seedStudentsError) throw seedStudentsError;
+          activeStudents = dbSeedStudents;
+        }
+
+        const jsStudents = activeStudents.map(mapDbStudentToJs);
+        // Sort by ID or creation to match original view
+        setStudents(jsStudents);
+        console.log("Datos sincronizados exitosamente con Supabase.");
+      } catch (err: any) {
+        console.error("Error al sincronizar con Supabase:", err);
+        setSupabaseError(err.message || "Error de conexión o permisos insuficientes");
+      } finally {
+        setIsSyncing(false);
+      }
+    }
+
+    syncWithSupabase();
+  }, []);
+
   // Filter/Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCareerFilter, setSelectedCareerFilter] = useState('ALL');
@@ -454,6 +587,21 @@ export default function App() {
     });
   }, [students, searchQuery, selectedCareerFilter, selectedStatusFilter, selectedSemesterFilter]);
 
+  // Helper to persist student data to Supabase (asynchronously)
+  const persistStudentToSupabase = async (student: Student) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const dbStudent = mapJsStudentToDb(student);
+      const { error } = await supabase
+        .from('students')
+        .upsert(dbStudent);
+      if (error) throw error;
+      console.log(`Estudiante ${student.name} guardado en Supabase.`);
+    } catch (err: any) {
+      console.error("Error al guardar estudiante en Supabase:", err);
+    }
+  };
+
   // Add standard new student helper
   const handleAddNewStudent = (e: FormEvent) => {
     e.preventDefault();
@@ -485,6 +633,7 @@ export default function App() {
     };
 
     setStudents(prev => [newStudent, ...prev]);
+    persistStudentToSupabase(newStudent);
     setIsNewStudentModalOpen(false);
 
     // Reset fields
@@ -511,11 +660,13 @@ export default function App() {
         if (s.status === 'Regular' || s.status === 'Alerta de Riesgo') {
           status = (gpa < 4.0 || s.attendance < 75) ? 'Alerta de Riesgo' : 'Regular';
         }
-        return {
+        const updated = {
           ...s,
           grades: updatedGrades,
           status
         };
+        persistStudentToSupabase(updated);
+        return updated;
       }
       return s;
     }));
@@ -525,7 +676,9 @@ export default function App() {
   const handleStatusChange = (studentId: string, newStatus: Student['status']) => {
     setStudents(prev => prev.map(s => {
       if (s.id === studentId) {
-        return { ...s, status: newStatus };
+        const updated = { ...s, status: newStatus };
+        persistStudentToSupabase(updated);
+        return updated;
       }
       return s;
     }));
@@ -541,7 +694,9 @@ export default function App() {
         if (s.status === 'Regular' || s.status === 'Alerta de Riesgo') {
           status = (gpa < 4.0 || att < 75) ? 'Alerta de Riesgo' : 'Regular';
         }
-        return { ...s, attendance: att, status };
+        const updated = { ...s, attendance: att, status };
+        persistStudentToSupabase(updated);
+        return updated;
       }
       return s;
     }));
@@ -553,10 +708,12 @@ export default function App() {
     if (!tempSupportLog.trim()) return;
     setStudents(prev => prev.map(s => {
       if (s.id === studentId) {
-        return {
+        const updated = {
           ...s,
           supportLogs: [...s.supportLogs, tempSupportLog.trim()]
         };
+        persistStudentToSupabase(updated);
+        return updated;
       }
       return s;
     }));
@@ -665,12 +822,54 @@ export default function App() {
 
         {/* Sidebar Footer Academic Status */}
         <div className="p-6 mt-auto border-t border-slate-800" id="cft-sidebar-footer">
-          <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/50">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Periodo Vigente</p>
-            <p className="text-white font-semibold text-sm">Segundo Semestre 2026</p>
-            <div className="mt-3 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[11px] text-slate-400">Servidores Académicos OK</span>
+          <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700/50 space-y-3">
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Periodo Vigente</p>
+              <p className="text-white font-semibold text-sm">Segundo Semestre 2026</p>
+            </div>
+            
+            <div className="border-t border-slate-700/50 pt-2.5">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                <Database className="w-3 h-3 text-slate-400" />
+                Base de Datos
+              </p>
+              
+              {isSupabaseConfigured ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 bg-emerald-950/40 border border-emerald-800/30 rounded-lg px-2 py-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="text-[11px] font-bold text-emerald-400">Supabase</span>
+                    </div>
+                    <button 
+                      onClick={() => window.location.reload()}
+                      className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                      title="Sincronizar base de datos"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                  {supabaseError && (
+                    <p className="text-[9px] text-rose-400 font-medium leading-tight">
+                      Error: {supabaseError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 bg-blue-950/40 border border-blue-800/30 rounded-lg px-2 py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                    <span className="text-[11px] font-bold text-blue-400">Modo Demo (Local)</span>
+                  </div>
+                  <button 
+                    onClick={() => setShowSqlModal(true)}
+                    className="w-full text-left text-[10px] font-bold text-blue-400 hover:text-blue-300 underline flex items-center gap-1 transition-all"
+                  >
+                    <CloudLightning className="w-3 h-3 shrink-0" />
+                    Generar tablas Supabase
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2033,6 +2232,94 @@ export default function App() {
                 </div>
               </div>
 
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: SUPABASE CONFIGURATION STEPPER */}
+      {showSqlModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto" id="supabase-modal-overlay">
+          <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-2xl w-full max-w-2xl p-6 md:p-8 relative overflow-hidden text-left" id="supabase-setup-modal">
+            
+            <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Database className="w-5 h-5 text-blue-600 animate-pulse" />
+                <h3 className="text-lg font-extrabold text-slate-900">Conectar base de datos Supabase</h3>
+              </div>
+              <button 
+                onClick={() => setShowSqlModal(false)}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Este sistema soporta lectura y escritura en tiempo real conectándose directamente con su instancia de PostgreSQL en Supabase. Siga estos sencillos pasos para habilitarla en su despliegue de Github y Vercel:
+              </p>
+
+              <div className="space-y-4">
+                {/* Paso 1 */}
+                <div className="flex gap-3 items-start">
+                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-800">Crear un proyecto en Supabase</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Inicie sesión en <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">supabase.com</a> y cree un nuevo proyecto de base de datos Postgres.</p>
+                  </div>
+                </div>
+
+                {/* Paso 2 */}
+                <div className="flex gap-3 items-start">
+                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+                  <div className="w-full">
+                    <h4 className="font-bold text-xs text-slate-800">Inicializar Esquemas (SQL Editor)</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Vaya al panel <strong>SQL Editor</strong> en Supabase, pegue el siguiente script SQL y ejecútelo para crear las tablas y las políticas de acceso (RLS):</p>
+                    
+                    {/* SQL code snippet container */}
+                    <div className="mt-2 bg-slate-950 rounded-xl p-3 relative font-mono text-[10px] text-slate-300 border border-slate-800">
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(SUPABASE_SETUP_SQL);
+                          setCopiedSql(true);
+                          setTimeout(() => setCopiedSql(false), 2000);
+                        }}
+                        className="absolute right-3 top-3 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg flex items-center gap-1 transition-all text-[9px] font-bold"
+                      >
+                        {copiedSql ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedSql ? '¡Copiado!' : 'Copiar SQL'}</span>
+                      </button>
+                      <pre className="max-h-[160px] overflow-y-auto pr-2 pt-5 select-all scrollbar-thin text-left whitespace-pre-wrap">
+                        {SUPABASE_SETUP_SQL}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Paso 3 */}
+                <div className="flex gap-3 items-start">
+                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-800">Configurar Variables de Entorno</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Copie las credenciales <strong>Project URL</strong> y <strong>Anon Key</strong> desde la sección <i>Settings &gt; API</i> de Supabase, e inyéctelas en la configuración de su sitio en Vercel:</p>
+                    <div className="mt-2 bg-slate-50 border rounded-lg p-2.5 space-y-1 font-mono text-[10px] text-slate-700">
+                      <p>VITE_SUPABASE_URL=tu_project_url_aqui</p>
+                      <p>VITE_SUPABASE_ANON_KEY=tu_anon_public_key_aqui</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowSqlModal(false)}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Entendido
+              </button>
             </div>
 
           </div>
