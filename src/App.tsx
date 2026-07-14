@@ -63,6 +63,7 @@ interface Student {
   status: 'Regular' | 'Alerta de Riesgo' | 'Suspendido' | 'Retirado';
   grades: SubjectGrades;
   email: string;
+  personalEmail?: string;
   phone: string;
   supportLogs: string[];
 }
@@ -90,6 +91,18 @@ function calculateGPA(grades: SubjectGrades): number {
   if (values.length === 0) return 0;
   const sum = values.reduce((acc, curr) => acc + curr, 0);
   return Math.round((sum / values.length) * 10) / 10;
+}
+
+// Helper to format WhatsApp link
+function getWhatsAppLink(phoneStr: string): string {
+  const cleaned = phoneStr.replace(/\D/g, '');
+  if (cleaned.startsWith('56')) {
+    return `https://wa.me/${cleaned}`;
+  }
+  if (cleaned.length === 9 && cleaned.startsWith('9')) {
+    return `https://wa.me/56${cleaned}`;
+  }
+  return `https://wa.me/${cleaned}`;
 }
 
 export default function App() {
@@ -237,6 +250,7 @@ export default function App() {
       status,
       grades: baseGrades,
       email: correoInst || correo || 'estudiante@cftpucv.cl',
+      personalEmail: correo || '',
       phone: fono || '+56 9 0000 0000',
       supportLogs: []
     };
@@ -2192,14 +2206,50 @@ export default function App() {
               </div>
 
               {/* Personal Contact Info */}
-              <div className="grid grid-cols-2 gap-4 mb-8 bg-slate-50 p-4 border border-slate-100 rounded-2xl text-xs">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className="truncate" title={selectedStudent.email}>{selectedStudent.email}</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 bg-slate-50 p-5 border border-slate-100 rounded-2xl text-xs">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Correo Institucional</span>
+                  <a 
+                    href={`mailto:${selectedStudent.email}`}
+                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium hover:underline truncate"
+                    title={selectedStudent.email}
+                  >
+                    <Mail className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span className="truncate">{selectedStudent.email}</span>
+                  </a>
                 </div>
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span>{selectedStudent.phone}</span>
+                
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Correo Personal</span>
+                  {selectedStudent.personalEmail ? (
+                    <a 
+                      href={`mailto:${selectedStudent.personalEmail}`}
+                      className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium hover:underline truncate"
+                      title={selectedStudent.personalEmail}
+                    >
+                      <Mail className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <span className="truncate">{selectedStudent.personalEmail}</span>
+                    </a>
+                  ) : (
+                    <span className="text-slate-400 italic flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-slate-300 shrink-0" />
+                      No registrado
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">WhatsApp / Contacto</span>
+                  <a 
+                    href={getWhatsAppLink(selectedStudent.phone)}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-emerald-600 hover:text-emerald-800 font-medium hover:underline"
+                    title="Enviar mensaje de WhatsApp"
+                  >
+                    <Phone className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>{selectedStudent.phone}</span>
+                  </a>
                 </div>
               </div>
 
