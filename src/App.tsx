@@ -1432,7 +1432,7 @@ export default function App() {
               {/* Metric Card 1: Estudiantes Totales */}
               <div className="bg-white border border-slate-200/80 shadow-xs rounded-[1.8rem] p-6 flex flex-col justify-between hover:shadow-md transition-all group" id="metric-enrolled">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Matrículas Activas</span>
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Estudiantes</span>
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Users className="w-5 h-5" />
                   </div>
@@ -2405,8 +2405,8 @@ export default function App() {
 
       {/* SLIDE-UP DRAWER: STUDENT FILE DETAILS & GRADES CALCULATOR */}
       {selectedStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-end z-50 animate-fade-in" id="student-detail-drawer">
-          <div className="bg-white w-full max-w-2xl h-full shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-left p-6 md:p-8">
+        <div className="fixed inset-0 bg-white z-50 overflow-y-auto animate-fade-in" id="student-detail-drawer">
+          <div className="max-w-4xl mx-auto min-h-screen flex flex-col justify-between p-6 md:p-12 w-full">
             
             {/* Drawer Header */}
             <div>
