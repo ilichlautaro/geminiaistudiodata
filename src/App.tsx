@@ -1,4 +1,4 @@
-import React, { useState, useMemo, FormEvent, useEffect } from 'react';
+import React, { useState, useMemo, FormEvent, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -30,7 +30,23 @@ import {
   RefreshCw,
   Copy
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured, SUPABASE_SETUP_SQL } from './lib/supabase';
+import { supabase, isSupabaseConfigured, SUPABASE_SETUP_SQL, formatRut, parseRut } from './lib/supabase';
+
+// Color palettes for dynamically generated careers from database
+const COLOR_PALETTES = [
+  { color: 'bg-amber-500', textColor: 'text-amber-600', bgLight: 'bg-amber-50' },
+  { color: 'bg-blue-500', textColor: 'text-blue-600', bgLight: 'bg-blue-50' },
+  { color: 'bg-indigo-500', textColor: 'text-indigo-600', bgLight: 'bg-indigo-50' },
+  { color: 'bg-emerald-500', textColor: 'text-emerald-600', bgLight: 'bg-emerald-50' },
+  { color: 'bg-purple-500', textColor: 'text-purple-600', bgLight: 'bg-purple-50' },
+  { color: 'bg-rose-500', textColor: 'text-rose-600', bgLight: 'bg-rose-50' },
+  { color: 'bg-teal-500', textColor: 'text-teal-600', bgLight: 'bg-teal-50' },
+  { color: 'bg-cyan-500', textColor: 'text-cyan-600', bgLight: 'bg-cyan-50' },
+  { color: 'bg-violet-500', textColor: 'text-violet-600', bgLight: 'bg-violet-50' },
+  { color: 'bg-fuchsia-500', textColor: 'text-fuchsia-600', bgLight: 'bg-fuchsia-50' },
+  { color: 'bg-orange-500', textColor: 'text-orange-600', bgLight: 'bg-orange-50' },
+];
+
 
 // Types & interfaces
 interface SubjectGrades {
@@ -360,34 +376,226 @@ export default function App() {
   const [showSqlModal, setShowSqlModal] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
-  // Data mapping helper functions
-  const mapDbStudentToJs = (dbStudent: any): Student => ({
-    id: dbStudent.id,
-    name: dbStudent.name,
-    rut: dbStudent.rut,
-    careerId: dbStudent.career_id,
-    semester: dbStudent.semester,
-    attendance: dbStudent.attendance,
-    status: dbStudent.status,
-    grades: dbStudent.grades,
-    email: dbStudent.email,
-    phone: dbStudent.phone,
-    supportLogs: dbStudent.support_logs || []
-  });
+  // Dynamic DB table and key casing references to support unquoted lowercased schemas or double-quoted uppercased schemas resiliently
+  const dbTableRef = useRef<string>('estudiantes');
+  const dbKeysCaseRef = useRef<'lower' | 'upper'>('lower');
 
-  const mapJsStudentToDb = (s: Student) => ({
-    id: s.id,
-    name: s.name,
-    rut: s.rut,
-    career_id: s.careerId,
-    semester: s.semester,
-    attendance: s.attendance,
-    status: s.status,
-    grades: s.grades,
-    email: s.email,
-    phone: s.phone,
-    support_logs: s.supportLogs
-  });
+  // Local overrides handling to persist UI customization (grades, attendance, support logs)
+  const getLocalOverride = (studentId: string) => {
+    try {
+      const key = `student_override_${studentId}`;
+      const existing = localStorage.getItem(key);
+      return existing ? JSON.parse(existing) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const saveLocalOverride = (studentId: string, data: any) => {
+    try {
+      const key = `student_override_${studentId}`;
+      const existing = localStorage.getItem(key);
+      const parsed = existing ? JSON.parse(existing) : {};
+      const updated = { ...parsed, ...data };
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Error saving local override", e);
+    }
+  };
+
+  // Helper to get field case-insensitively (supports both UPPERCASE and lowercase keys)
+  const getFieldVal = (obj: any, keyUpper: string) => {
+    if (!obj) return undefined;
+    return obj[keyUpper] !== undefined ? obj[keyUpper] : obj[keyUpper.toLowerCase()];
+  };
+
+  // Data mapping helper functions for ESTUDIANTES table
+  const mapDbStudentToJs = (dbStudent: any): Student => {
+    const paterno = getFieldVal(dbStudent, 'PATERNO') || '';
+    const materno = getFieldVal(dbStudent, 'MATERNO') || '';
+    const nombres = getFieldVal(dbStudent, 'NOMBRE') || '';
+    const cohorte = parseInt(getFieldVal(dbStudent, 'COHORTE'), 10) || 2025;
+    const rutNum = parseInt(getFieldVal(dbStudent, 'RUT'), 10) || 0;
+    const dig = getFieldVal(dbStudent, 'DIG') || '';
+    const fono = getFieldVal(dbStudent, 'FONOACT') || '';
+    const dir = getFieldVal(dbStudent, 'DIRACTUAL') || '';
+    const comuna = getFieldVal(dbStudent, 'COMUNA') || '';
+    const jornada = getFieldVal(dbStudent, 'JORNADA') || 'D';
+    const nombreC = getFieldVal(dbStudent, 'NOMBRE_C') || '';
+    const correo = getFieldVal(dbStudent, 'CORREO') || '';
+    const correoInst = getFieldVal(dbStudent, 'CORREO_INSTITUCIONAL') || '';
+    const estado = getFieldVal(dbStudent, 'ESTADO') || 'NORMAL';
+
+    // Format full name
+    const fullName = [nombres, paterno, materno].map(s => String(s).trim()).filter(Boolean).join(' ');
+
+    // Format RUT (dots and hyphen)
+    const formattedRut = formatRut(rutNum, dig);
+
+    // Map ESTADO to UI status
+    let status: Student['status'] = 'Regular';
+    const cleanEstado = String(estado).toUpperCase().trim();
+    if (cleanEstado === 'ALERTA' || cleanEstado === 'ALERTA DE RIESGO' || cleanEstado === 'RIESGO') {
+      status = 'Alerta de Riesgo';
+    } else if (cleanEstado === 'SUSPENDIDO') {
+      status = 'Suspendido';
+    } else if (cleanEstado === 'RETIRADO' || cleanEstado === 'ELIMINADO' || cleanEstado === 'BAJA') {
+      status = 'Retirado';
+    }
+
+    // Resolve or extract career ID
+    const cleanCareerName = String(nombreC).trim();
+    let careerId = 'INF'; // Default fallback
+    if (cleanCareerName) {
+      const matched = CAREERS.find(c => c.name.toLowerCase() === cleanCareerName.toLowerCase() || c.id.toLowerCase() === cleanCareerName.toLowerCase());
+      if (matched) {
+        careerId = matched.id;
+      } else {
+        // Derive unique ID from name
+        const words = cleanCareerName.split(/\s+/).filter(w => w.length > 2);
+        let derivedId = '';
+        if (words.length >= 2) {
+          derivedId = (words[0][0] + words[1][0] + (words[2] ? words[2][0] : words[0][1])).toUpperCase();
+        } else if (cleanCareerName.length >= 3) {
+          derivedId = cleanCareerName.slice(0, 3).toUpperCase();
+        } else {
+          derivedId = cleanCareerName.toUpperCase();
+        }
+        
+        // Ensure uniqueness among predefined careers
+        let uniqueId = derivedId;
+        let suffix = 1;
+        while (CAREERS.some(c => c.id === uniqueId)) {
+          uniqueId = `${derivedId}${suffix}`;
+          suffix++;
+        }
+        careerId = uniqueId;
+      }
+    }
+
+    // Semester derived from Cohort
+    const currentYear = 2026;
+    const diff = currentYear - cohorte;
+    let semester = 1;
+    if (diff === 1) {
+      semester = 3;
+    } else if (diff >= 2) {
+      semester = 5;
+    }
+
+    // Generate stable base attendance and grades based on RUT
+    const seedNum = rutNum || 100;
+    const baseAttendance = 70 + (seedNum % 28); // stable percentage between 70% and 98%
+
+    const matchedCareer = CAREERS.find(c => c.id === careerId);
+    const subjects = matchedCareer ? matchedCareer.subjects : ['Rendimiento Gral', 'Evaluación Continua', 'Taller Integrado'];
+    
+    const baseGrades: SubjectGrades = {};
+    subjects.forEach((subj, idx) => {
+      const base = 4.0 + ((seedNum + idx * 7) % 31) / 10; // stable grades between 4.0 and 7.0
+      baseGrades[subj] = Math.round(base * 10) / 10;
+    });
+
+    const mapped: Student = {
+      id: String(rutNum),
+      name: fullName,
+      rut: formattedRut,
+      careerId,
+      semester,
+      attendance: baseAttendance,
+      status,
+      grades: baseGrades,
+      email: correoInst || correo || 'estudiante@cftpucv.cl',
+      phone: fono || '+56 9 0000 0000',
+      supportLogs: []
+    };
+
+    // Blend overrides (customized grades, attendance, etc. edited in UI)
+    const override = getLocalOverride(mapped.id);
+    if (override) {
+      if (override.grades) mapped.grades = { ...mapped.grades, ...override.grades };
+      if (override.attendance !== undefined) mapped.attendance = override.attendance;
+      if (override.supportLogs) mapped.supportLogs = override.supportLogs;
+      if (override.status) mapped.status = override.status;
+    }
+
+    return mapped;
+  };
+
+  const mapJsStudentToDb = (s: Student) => {
+    const { rut, dig } = parseRut(s.rut);
+    
+    // Split full name into NOMBRE, PATERNO, MATERNO
+    const words = s.name.trim().split(/\s+/);
+    let nombres = '';
+    let paterno = '';
+    let materno = '';
+    
+    if (words.length >= 3) {
+      materno = words[words.length - 1];
+      paterno = words[words.length - 2];
+      nombres = words.slice(0, words.length - 2).join(' ');
+    } else if (words.length === 2) {
+      paterno = words[1];
+      nombres = words[0];
+    } else if (words.length === 1) {
+      nombres = words[0];
+    }
+
+    // Determine carrier name
+    const matchedCareer = careersList.find(c => c.id === s.careerId);
+    const nombreC = matchedCareer ? matchedCareer.name : 'Técnico en Informática';
+
+    // Map JS status back to ESTADO
+    let estado = 'NORMAL';
+    if (s.status === 'Alerta de Riesgo') {
+      estado = 'ALERTA';
+    } else if (s.status === 'Suspendido') {
+      estado = 'SUSPENDIDO';
+    } else if (s.status === 'Retirado') {
+      estado = 'RETIRADO';
+    }
+
+    // Calculate cohorte based on semester
+    const currentYear = 2026;
+    let cohorte = currentYear;
+    if (s.semester >= 5) {
+      cohorte = currentYear - 2;
+    } else if (s.semester >= 3) {
+      cohorte = currentYear - 1;
+    } else {
+      cohorte = currentYear;
+    }
+
+    return {
+      PATERNO: paterno.toUpperCase(),
+      MATERNO: materno.toUpperCase(),
+      NOMBRE: nombres.toUpperCase(),
+      COHORTE: cohorte,
+      RUT: rut,
+      DIG: dig,
+      FONOACT: s.phone,
+      DIRACTUAL: 'EL TRAPICHE LONGOTOMA SITIO 52',
+      COMUNA: 'LA LIGUA',
+      JORNADA: 'D',
+      NOMBRE_C: nombreC,
+      CORREO: s.email,
+      CORREO_INSTITUCIONAL: s.email,
+      ESTADO: estado
+    };
+  };
+
+  const mapJsStudentToDbWithCase = (s: Student, kCase: 'lower' | 'upper') => {
+    const raw = mapJsStudentToDb(s);
+    if (kCase === 'upper') {
+      return raw;
+    }
+    const lowered: any = {};
+    Object.entries(raw).forEach(([k, v]) => {
+      lowered[k.toLowerCase()] = v;
+    });
+    return lowered;
+  };
 
   // Fetch and Sync with Supabase on mount
   useEffect(() => {
@@ -401,79 +609,128 @@ export default function App() {
       setSupabaseError(null);
 
       try {
-        // 1. Fetch & Sync Careers
-        const { data: dbCareers, error: careersError } = await supabase
-          .from('careers')
+        let dbStudents: any[] = [];
+        let finalTable = 'estudiantes';
+        let keysCase: 'lower' | 'upper' = 'lower';
+
+        // Try querying lowercase 'estudiantes' first
+        const { data: lowerData, error: lowerError } = await supabase
+          .from('estudiantes')
           .select('*');
 
-        if (careersError) throw careersError;
+        if (!lowerError) {
+          finalTable = 'estudiantes';
+          dbStudents = lowerData || [];
+          if (lowerData && lowerData.length > 0) {
+            const keys = Object.keys(lowerData[0]);
+            const hasUpper = keys.some(k => k === 'RUT' || k === 'PATERNO');
+            keysCase = hasUpper ? 'upper' : 'lower';
+          }
+        } else {
+          // Try uppercase 'ESTUDIANTES'
+          const { data: upperData, error: upperError } = await supabase
+            .from('ESTUDIANTES')
+            .select('*');
 
-        let activeCareers = dbCareers || [];
-
-        // If no careers exist in remote database, seed them
-        if (activeCareers.length === 0) {
-          console.log("Sembrando catálogo de carreras en Supabase...");
-          const mappedCareers = CAREERS.map(c => ({
-            id: c.id,
-            name: c.name,
-            capacity: c.capacity,
-            duration_semesters: c.durationSemesters,
-            subjects: c.subjects,
-            color: c.color,
-            text_color: c.textColor,
-            bg_light: c.bgLight
-          }));
-
-          const { error: seedCareersError } = await supabase
-            .from('careers')
-            .insert(mappedCareers);
-
-          if (seedCareersError) throw seedCareersError;
-          activeCareers = mappedCareers;
+          if (!upperError) {
+            finalTable = 'ESTUDIANTES';
+            dbStudents = upperData || [];
+            if (upperData && upperData.length > 0) {
+              const keys = Object.keys(upperData[0]);
+              const hasUpper = keys.some(k => k === 'RUT' || k === 'PATERNO');
+              keysCase = hasUpper ? 'upper' : 'lower';
+            }
+          } else {
+            // Both failed, throw the lower error
+            throw lowerError;
+          }
         }
 
-        // Map careers back to JS representation
-        const jsCareers: Career[] = activeCareers.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          capacity: c.capacity,
-          durationSemesters: c.duration_semesters,
-          subjects: c.subjects,
-          color: c.color,
-          textColor: c.text_color,
-          bgLight: c.bg_light
-        }));
-        setCareersList(jsCareers);
-
-        // 2. Fetch & Sync Students
-        const { data: dbStudents, error: studentsError } = await supabase
-          .from('students')
-          .select('*');
-
-        if (studentsError) throw studentsError;
+        dbTableRef.current = finalTable;
+        dbKeysCaseRef.current = keysCase;
 
         let activeStudents = dbStudents || [];
 
-        // If no students exist, seed them
+        // If no students exist, seed them in the new schema format
         if (activeStudents.length === 0) {
-          console.log("Sembrando estudiantes iniciales en Supabase...");
-          const dbSeedStudents = INITIAL_STUDENTS.map(mapJsStudentToDb);
+          console.log(`Sembrando estudiantes iniciales en la tabla ${finalTable} de Supabase...`);
+          const dbSeedStudents = INITIAL_STUDENTS.map(s => mapJsStudentToDbWithCase(s, keysCase));
           
           const { error: seedStudentsError } = await supabase
-            .from('students')
+            .from(finalTable)
             .insert(dbSeedStudents);
 
           if (seedStudentsError) throw seedStudentsError;
           activeStudents = dbSeedStudents;
         }
 
+        // Dynamically build and colorize catalog of careers based on NOMBRE_C values found in the database
+        const uniqueCareersInDb = Array.from(new Set(
+          activeStudents.map((s: any) => {
+            return String(getFieldVal(s, 'NOMBRE_C') || '').trim();
+          }).filter(Boolean)
+        ));
+
+        let updatedCareers = [...CAREERS];
+        uniqueCareersInDb.forEach((cName) => {
+          const exists = updatedCareers.some(c => c.name.toLowerCase() === cName.toLowerCase() || c.id.toLowerCase() === cName.toLowerCase());
+          if (!exists) {
+            // Generate a unique ID
+            const words = cName.split(/\s+/).filter(w => w.length > 2);
+            let derivedId = '';
+            if (words.length >= 2) {
+              derivedId = (words[0][0] + words[1][0] + (words[2] ? words[2][0] : words[0][1])).toUpperCase();
+            } else if (cName.length >= 3) {
+              derivedId = cName.slice(0, 3).toUpperCase();
+            } else {
+              derivedId = cName.toUpperCase();
+            }
+            
+            // Ensure uniqueness
+            let uniqueId = derivedId;
+            let suffix = 1;
+            while (updatedCareers.some(c => c.id === uniqueId)) {
+              uniqueId = `${derivedId}${suffix}`;
+              suffix++;
+            }
+
+            const palette = COLOR_PALETTES[updatedCareers.length % COLOR_PALETTES.length];
+
+            updatedCareers.push({
+              id: uniqueId,
+              name: cName,
+              capacity: 100,
+              durationSemesters: 5,
+              subjects: ['Rendimiento Gral', 'Evaluación Continua', 'Taller Integrado'],
+              ...palette
+            });
+          }
+        });
+        setCareersList(updatedCareers);
+
+        // Convert the database entries to JavaScript students
         const jsStudents = activeStudents.map(mapDbStudentToJs);
-        // Sort by ID or creation to match original view
         setStudents(jsStudents);
-        console.log("Datos sincronizados exitosamente con Supabase.");
+        console.log(`Datos sincronizados exitosamente con Supabase (tabla ${finalTable}, llaves ${keysCase}).`);
       } catch (err: any) {
         console.error("Error al sincronizar con Supabase:", err);
-        setSupabaseError(err.message || "Error de conexión o permisos insuficientes");
+        let errorMsg = "";
+        if (err && typeof err === 'object') {
+          errorMsg = err.message || err.details || JSON.stringify(err);
+        } else {
+          errorMsg = String(err);
+        }
+
+        // Add user-friendly prompt if table doesn't exist
+        if (errorMsg.includes('relation') && errorMsg.includes('does not exist')) {
+          errorMsg = "Tablas no encontradas en Supabase (ejecute el script SQL)";
+        } else if (errorMsg.includes('42P01')) {
+          errorMsg = "Faltan las tablas en Supabase (ejecute el script SQL)";
+        } else if (errorMsg.includes('Failed to fetch') || errorMsg.includes('network')) {
+          errorMsg = "Error de red/conexión con Supabase. Revise sus credenciales.";
+        }
+        
+        setSupabaseError(errorMsg);
       } finally {
         setIsSyncing(false);
       }
@@ -589,14 +846,44 @@ export default function App() {
 
   // Helper to persist student data to Supabase (asynchronously)
   const persistStudentToSupabase = async (student: Student) => {
+    // Save local overrides for interactive features not supported by the simple database schema
+    saveLocalOverride(student.id, {
+      grades: student.grades,
+      attendance: student.attendance,
+      supportLogs: student.supportLogs,
+      status: student.status
+    });
+
     if (!isSupabaseConfigured || !supabase) return;
     try {
-      const dbStudent = mapJsStudentToDb(student);
-      const { error } = await supabase
-        .from('students')
-        .upsert(dbStudent);
-      if (error) throw error;
-      console.log(`Estudiante ${student.name} guardado en Supabase.`);
+      const dbStudent = mapJsStudentToDbWithCase(student, dbKeysCaseRef.current);
+      const rutCol = dbKeysCaseRef.current === 'lower' ? 'rut' : 'RUT';
+      const studentRutNum = parseRut(student.rut).rut;
+
+      // Check if row already exists
+      const { data: existing, error: selectError } = await supabase
+        .from(dbTableRef.current)
+        .select(rutCol)
+        .eq(rutCol, studentRutNum);
+
+      if (selectError) throw selectError;
+
+      if (existing && existing.length > 0) {
+        // Update existing row
+        const { error: updateError } = await supabase
+          .from(dbTableRef.current)
+          .update(dbStudent)
+          .eq(rutCol, studentRutNum);
+        if (updateError) throw updateError;
+      } else {
+        // Insert new row
+        const { error: insertError } = await supabase
+          .from(dbTableRef.current)
+          .insert([dbStudent]);
+        if (insertError) throw insertError;
+      }
+
+      console.log(`Estudiante ${student.name} guardado en Supabase (tabla ${dbTableRef.current}).`);
     } catch (err: any) {
       console.error("Error al guardar estudiante en Supabase:", err);
     }
@@ -618,10 +905,14 @@ export default function App() {
       });
     }
 
+    const parsedR = parseRut(newStudentRut);
+    const newId = parsedR.rut ? String(parsedR.rut) : `st-${Date.now()}`;
+    const formattedRut = formatRut(parsedR.rut, parsedR.dig) || newStudentRut;
+
     const newStudent: Student = {
-      id: `st-${Date.now()}`,
+      id: newId,
       name: newStudentName,
-      rut: newStudentRut,
+      rut: formattedRut,
       careerId: newStudentCareer,
       semester: Number(newStudentSemester),
       attendance: Number(newStudentAttendance),
@@ -838,8 +1129,8 @@ export default function App() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2 bg-emerald-950/40 border border-emerald-800/30 rounded-lg px-2 py-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span className="text-[11px] font-bold text-emerald-400">Supabase</span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${supabaseError ? 'bg-rose-400' : 'bg-emerald-400 animate-pulse'}`}></span>
+                      <span className={`text-[11px] font-bold ${supabaseError ? 'text-rose-400' : 'text-emerald-400'}`}>Supabase</span>
                     </div>
                     <button 
                       onClick={() => window.location.reload()}
@@ -850,9 +1141,18 @@ export default function App() {
                     </button>
                   </div>
                   {supabaseError && (
-                    <p className="text-[9px] text-rose-400 font-medium leading-tight">
-                      Error: {supabaseError}
-                    </p>
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] text-rose-400 font-medium leading-tight">
+                        {supabaseError}
+                      </p>
+                      <button 
+                        onClick={() => setShowSqlModal(true)}
+                        className="w-full text-left text-[9px] font-bold text-blue-400 hover:text-blue-300 underline flex items-center gap-1 transition-all"
+                      >
+                        <CloudLightning className="w-2.5 h-2.5 shrink-0" />
+                        Ver instrucciones y SQL
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
