@@ -79,280 +79,10 @@ interface Career {
 }
 
 // CFT Careers
-const CAREERS: Career[] = [
-  { 
-    id: 'MIN', 
-    name: 'Técnico en Minería', 
-    capacity: 250, 
-    durationSemesters: 5, 
-    subjects: ['Carguío y Transporte', 'Sistemas de Ventilación', 'Prevención de Riesgos', 'Geología General'],
-    color: 'bg-amber-500',
-    textColor: 'text-amber-600',
-    bgLight: 'bg-amber-50'
-  },
-  { 
-    id: 'MEC', 
-    name: 'Téc. Mecánica Automotriz', 
-    capacity: 220, 
-    durationSemesters: 5, 
-    subjects: ['Motores Combustión', 'Sistemas Transmisión', 'Inyección Electrónica', 'Diagnóstico Computarizado'],
-    color: 'bg-blue-500',
-    textColor: 'text-blue-600',
-    bgLight: 'bg-blue-50'
-  },
-  { 
-    id: 'INF', 
-    name: 'Técnico en Informática', 
-    capacity: 300, 
-    durationSemesters: 5, 
-    subjects: ['Fundamentos Progra', 'Bases de Datos', 'Sistemas Operativos', 'Desarrollo Web'],
-    color: 'bg-indigo-500',
-    textColor: 'text-indigo-600',
-    bgLight: 'bg-indigo-50'
-  },
-  { 
-    id: 'ENE', 
-    name: 'Téc. Energías Renovables', 
-    capacity: 180, 
-    durationSemesters: 5, 
-    subjects: ['Sistemas Solares', 'Sistemas Eólicos', 'Eficiencia Energética', 'Redes Inteligentes'],
-    color: 'bg-emerald-500',
-    textColor: 'text-emerald-600',
-    bgLight: 'bg-emerald-50'
-  },
-  { 
-    id: 'ADM', 
-    name: 'Téc. Admin de Empresas', 
-    capacity: 240, 
-    durationSemesters: 5, 
-    subjects: ['Administración Gral', 'Contabilidad Básica', 'Marketing Digital', 'Recursos Humanos'],
-    color: 'bg-purple-500',
-    textColor: 'text-purple-600',
-    bgLight: 'bg-purple-50'
-  },
-  { 
-    id: 'CON', 
-    name: 'Técnico en Construcción', 
-    capacity: 190, 
-    durationSemesters: 5, 
-    subjects: ['Materiales de Obra', 'Interpretación Planos', 'Cubicación y Costos', 'Seguridad en Obra'],
-    color: 'bg-rose-500',
-    textColor: 'text-rose-600',
-    bgLight: 'bg-rose-50'
-  }
-];
+const CAREERS: Career[] = [];
 
 // Seed Students with realistic Chilean names & RUTs
-const INITIAL_STUDENTS: Student[] = [
-  {
-    id: 'st-1',
-    name: 'Sofía Lagos Morales',
-    rut: '19.432.556-3',
-    careerId: 'MIN',
-    semester: 4,
-    attendance: 96,
-    status: 'Regular',
-    grades: { 'Carguío y Transporte': 6.8, 'Sistemas de Ventilación': 6.5, 'Prevención de Riesgos': 7.0, 'Geología General': 6.9 },
-    email: 's.lagos@cftacademia.cl',
-    phone: '+56 9 8832 4112',
-    supportLogs: ['Inducción inicial aprobada', 'Postulante a Beca Minera']
-  },
-  {
-    id: 'st-2',
-    name: 'Andrés Soto Figueroa',
-    rut: '20.121.884-K',
-    careerId: 'INF',
-    semester: 2,
-    attendance: 94,
-    status: 'Regular',
-    grades: { 'Fundamentos Progra': 6.7, 'Bases de Datos': 6.5, 'Sistemas Operativos': 6.8, 'Desarrollo Web': 6.8 },
-    email: 'a.soto@cftacademia.cl',
-    phone: '+56 9 7744 5599',
-    supportLogs: []
-  },
-  {
-    id: 'st-3',
-    name: 'Juan Pérez Muñoz',
-    rut: '18.524.312-5',
-    careerId: 'MEC',
-    semester: 3,
-    attendance: 68,
-    status: 'Alerta de Riesgo',
-    grades: { 'Motores Combustión': 3.8, 'Sistemas Transmisión': 4.2, 'Inyección Electrónica': 3.5, 'Diagnóstico Computarizado': 3.7 },
-    email: 'j.perez@cftacademia.cl',
-    phone: '+56 9 6611 2233',
-    supportLogs: ['Llamada de alerta por asistencia', 'Agendado con Psicopedagogo para reforzamiento de Inyección']
-  },
-  {
-    id: 'st-4',
-    name: 'Marta Araya Rojas',
-    rut: '21.354.129-2',
-    careerId: 'CON',
-    semester: 1,
-    attendance: 55,
-    status: 'Alerta de Riesgo',
-    grades: { 'Materiales de Obra': 4.5, 'Interpretación Planos': 3.4, 'Cubicación y Costos': 3.8, 'Seguridad en Obra': 4.2 },
-    email: 'm.araya@cftacademia.cl',
-    phone: '+56 9 9944 1122',
-    supportLogs: ['Entrevista social pendiente', 'Se acordó flexibilidad horaria por motivos laborales']
-  },
-  {
-    id: 'st-5',
-    name: 'Carlos Vera Henríquez',
-    rut: '19.885.421-0',
-    careerId: 'INF',
-    semester: 4,
-    attendance: 71,
-    status: 'Alerta de Riesgo',
-    grades: { 'Fundamentos Progra': 3.5, 'Bases de Datos': 4.0, 'Sistemas Operativos': 3.8, 'Desarrollo Web': 3.2 },
-    email: 'c.vera@cftacademia.cl',
-    phone: '+56 9 5544 3322',
-    supportLogs: ['Tutoría académica asignada en Programación y Web']
-  },
-  {
-    id: 'st-6',
-    name: 'Daniela Castro Ibáñez',
-    rut: '20.312.449-7',
-    careerId: 'ENE',
-    semester: 3,
-    attendance: 92,
-    status: 'Regular',
-    grades: { 'Sistemas Solares': 6.2, 'Sistemas Eólicos': 5.8, 'Eficiencia Energética': 6.0, 'Redes Inteligentes': 5.9 },
-    email: 'd.castro@cftacademia.cl',
-    phone: '+56 9 8811 7733',
-    supportLogs: []
-  },
-  {
-    id: 'st-7',
-    name: 'Gabriel Godoy Silva',
-    rut: '17.942.331-6',
-    careerId: 'ADM',
-    semester: 5,
-    attendance: 90,
-    status: 'Regular',
-    grades: { 'Administración Gral': 5.5, 'Contabilidad Básica': 5.2, 'Marketing Digital': 5.8, 'Recursos Humanos': 6.0 },
-    email: 'g.godoy@cftacademia.cl',
-    phone: '+56 9 4433 2211',
-    supportLogs: []
-  },
-  {
-    id: 'st-8',
-    name: 'Patricia Fuentes Lagos',
-    rut: '19.231.841-4',
-    careerId: 'CON',
-    semester: 3,
-    attendance: 88,
-    status: 'Regular',
-    grades: { 'Materiales de Obra': 5.1, 'Interpretación Planos': 5.4, 'Cubicación y Costos': 5.0, 'Seguridad en Obra': 5.3 },
-    email: 'p.fuentes@cftacademia.cl',
-    phone: '+56 9 7722 8811',
-    supportLogs: []
-  },
-  {
-    id: 'st-9',
-    name: 'Ricardo Torres Galdames',
-    rut: '18.224.512-K',
-    careerId: 'MEC',
-    semester: 2,
-    attendance: 38,
-    status: 'Retirado',
-    grades: { 'Motores Combustión': 2.5, 'Sistemas Transmisión': 3.0, 'Inyección Electrónica': 2.8, 'Diagnóstico Computarizado': 3.1 },
-    email: 'r.torres@cftacademia.cl',
-    phone: '+56 9 1122 3344',
-    supportLogs: ['Abandono de carrera por problemas financieros - Mayo 2026']
-  },
-  {
-    id: 'st-10',
-    name: 'Valentina Ortiz Sepúlveda',
-    rut: '21.114.908-1',
-    careerId: 'ADM',
-    semester: 1,
-    attendance: 98,
-    status: 'Regular',
-    grades: { 'Administración Gral': 6.4, 'Contabilidad Básica': 6.6, 'Marketing Digital': 6.2, 'Recursos Humanos': 6.5 },
-    email: 'v.ortiz@cftacademia.cl',
-    phone: '+56 9 9988 7766',
-    supportLogs: []
-  },
-  {
-    id: 'st-11',
-    name: 'Esteban Plaza Valenzuela',
-    rut: '19.004.832-4',
-    careerId: 'MIN',
-    semester: 2,
-    attendance: 45,
-    status: 'Retirado',
-    grades: { 'Carguío y Transporte': 3.1, 'Sistemas de Ventilación': 3.4, 'Prevención de Riesgos': 4.0, 'Geología General': 3.2 },
-    email: 'e.plaza@cftacademia.cl',
-    phone: '+56 9 3344 5566',
-    supportLogs: ['Desertó voluntariamente por traslado de región']
-  },
-  {
-    id: 'st-12',
-    name: 'Camila Benítez Toro',
-    rut: '20.556.711-2',
-    careerId: 'ENE',
-    semester: 2,
-    attendance: 89,
-    status: 'Regular',
-    grades: { 'Sistemas Solares': 5.4, 'Sistemas Eólicos': 5.2, 'Eficiencia Energética': 5.6, 'Redes Inteligentes': 5.5 },
-    email: 'c.benitez@cftacademia.cl',
-    phone: '+56 9 6677 8899',
-    supportLogs: []
-  },
-  {
-    id: 'st-13',
-    name: 'José González Tapia',
-    rut: '18.776.541-5',
-    careerId: 'MEC',
-    semester: 4,
-    attendance: 83,
-    status: 'Regular',
-    grades: { 'Motores Combustión': 5.1, 'Sistemas Transmisión': 5.0, 'Inyección Electrónica': 4.8, 'Diagnóstico Computarizado': 4.9 },
-    email: 'j.gonzalez@cftacademia.cl',
-    phone: '+56 9 4455 6677',
-    supportLogs: []
-  },
-  {
-    id: 'st-14',
-    name: 'Bastián Garrido Mena',
-    rut: '19.642.315-9',
-    careerId: 'INF',
-    semester: 3,
-    attendance: 79,
-    status: 'Regular',
-    grades: { 'Fundamentos Progra': 4.4, 'Bases de Datos': 4.6, 'Sistemas Operativos': 4.2, 'Desarrollo Web': 4.8 },
-    email: 'b.garrido@cftacademia.cl',
-    phone: '+56 9 8877 6655',
-    supportLogs: ['Monitoreo continuo de asistencia por decaimiento en semestres previos']
-  },
-  {
-    id: 'st-15',
-    name: 'Ignacio Saavedra Ruiz',
-    rut: '20.245.918-6',
-    careerId: 'ADM',
-    semester: 3,
-    attendance: 64,
-    status: 'Alerta de Riesgo',
-    grades: { 'Administración Gral': 4.0, 'Contabilidad Básica': 3.8, 'Marketing Digital': 4.2, 'Recursos Humanos': 3.9 },
-    email: 'i.saavedra@cftacademia.cl',
-    phone: '+56 9 5566 7788',
-    supportLogs: ['Advertencia de baja asistencia emitida el 10/06/2026']
-  },
-  {
-    id: 'st-16',
-    name: 'Mariana Valdés Pardo',
-    rut: '19.982.115-K',
-    careerId: 'MIN',
-    semester: 1,
-    attendance: 91,
-    status: 'Suspendido',
-    grades: { 'Carguío y Transporte': 4.8, 'Sistemas de Ventilación': 4.6, 'Prevención de Riesgos': 5.0, 'Geología General': 4.7 },
-    email: 'm.valdes@cftacademia.cl',
-    phone: '+56 9 7788 1234',
-    supportLogs: ['Congelación de semestre médica autorizada - Junio 2026']
-  }
-];
+const INITIAL_STUDENTS: Student[] = [];
 
 // Helper to calculate student GPA
 function calculateGPA(grades: SubjectGrades): number {
@@ -410,7 +140,8 @@ export default function App() {
   };
 
   // Data mapping helper functions for ESTUDIANTES table
-  const mapDbStudentToJs = (dbStudent: any): Student => {
+  const mapDbStudentToJs = (dbStudent: any, customCareers?: Career[]): Student => {
+    const currentCareers = customCareers || careersList;
     const paterno = getFieldVal(dbStudent, 'PATERNO') || '';
     const materno = getFieldVal(dbStudent, 'MATERNO') || '';
     const nombres = getFieldVal(dbStudent, 'NOMBRE') || '';
@@ -447,7 +178,7 @@ export default function App() {
     const cleanCareerName = String(nombreC).trim();
     let careerId = 'INF'; // Default fallback
     if (cleanCareerName) {
-      const matched = CAREERS.find(c => c.name.toLowerCase() === cleanCareerName.toLowerCase() || c.id.toLowerCase() === cleanCareerName.toLowerCase());
+      const matched = currentCareers.find(c => c.name.toLowerCase() === cleanCareerName.toLowerCase() || c.id.toLowerCase() === cleanCareerName.toLowerCase());
       if (matched) {
         careerId = matched.id;
       } else {
@@ -465,7 +196,7 @@ export default function App() {
         // Ensure uniqueness among predefined careers
         let uniqueId = derivedId;
         let suffix = 1;
-        while (CAREERS.some(c => c.id === uniqueId)) {
+        while (currentCareers.some(c => c.id === uniqueId)) {
           uniqueId = `${derivedId}${suffix}`;
           suffix++;
         }
@@ -487,7 +218,7 @@ export default function App() {
     const seedNum = rutNum || 100;
     const baseAttendance = 70 + (seedNum % 28); // stable percentage between 70% and 98%
 
-    const matchedCareer = CAREERS.find(c => c.id === careerId);
+    const matchedCareer = currentCareers.find(c => c.id === careerId);
     const subjects = matchedCareer ? matchedCareer.subjects : ['Rendimiento Gral', 'Evaluación Continua', 'Taller Integrado'];
     
     const baseGrades: SubjectGrades = {};
@@ -709,7 +440,7 @@ export default function App() {
         setCareersList(updatedCareers);
 
         // Convert the database entries to JavaScript students
-        const jsStudents = activeStudents.map(mapDbStudentToJs);
+        const jsStudents = activeStudents.map(s => mapDbStudentToJs(s, updatedCareers));
         setStudents(jsStudents);
         console.log(`Datos sincronizados exitosamente con Supabase (tabla ${finalTable}, llaves ${keysCase}).`);
       } catch (err: any) {
@@ -758,12 +489,19 @@ export default function App() {
   // New Student Form State
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentRut, setNewStudentRut] = useState('');
-  const [newStudentCareer, setNewStudentCareer] = useState('MIN');
+  const [newStudentCareer, setNewStudentCareer] = useState('');
   const [newStudentSemester, setNewStudentSemester] = useState(1);
   const [newStudentAttendance, setNewStudentAttendance] = useState(100);
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newStudentPhone, setNewStudentPhone] = useState('');
   const [newStudentGrades, setNewStudentGrades] = useState<SubjectGrades>({});
+
+  // Auto-select first career from loaded database list
+  useEffect(() => {
+    if (!newStudentCareer && careersList.length > 0) {
+      setNewStudentCareer(careersList[0].id);
+    }
+  }, [careersList, newStudentCareer]);
 
   // Dynamic calculations based on state
   const totalEnrolled = useMemo(() => {
@@ -930,7 +668,7 @@ export default function App() {
     // Reset fields
     setNewStudentName('');
     setNewStudentRut('');
-    setNewStudentCareer('MIN');
+    setNewStudentCareer(careersList[0]?.id || '');
     setNewStudentSemester(1);
     setNewStudentAttendance(100);
     setNewStudentEmail('');
@@ -1017,7 +755,7 @@ export default function App() {
     csvContent += 'Nombre,RUT,Carrera,Semestre,Asistencia,Estado,Promedio Gral,Contacto,Telefono\r\n';
     
     filteredStudents.forEach(s => {
-      const c = CAREERS.find(car => car.id === s.careerId)?.name || s.careerId;
+      const c = careersList.find(car => car.id === s.careerId)?.name || s.careerId;
       const gpa = calculateGPA(s.grades);
       const row = `"${s.name}","${s.rut}","${c}",${s.semester},${s.attendance}%,"${s.status}",${gpa},"${s.email}","${s.phone}"`;
       csvContent += row + '\r\n';
@@ -1593,7 +1331,7 @@ export default function App() {
                     })}
                   </div>
                   <div className="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold px-1">
-                    <span>* Ejes categorizados por código de carrera (MIN, MEC, INF, ENE, ADM, CON)</span>
+                    <span>* Ejes categorizados por código de carrera</span>
                     <span className="text-blue-600 cursor-pointer hover:underline" onClick={() => setActiveTab('carreras')}>
                       Ver detalle de carreras &rarr;
                     </span>
@@ -1622,7 +1360,7 @@ export default function App() {
                       </div>
                     ) : (
                       students.filter(s => s.status === 'Alerta de Riesgo').map(s => {
-                        const career = CAREERS.find(c => c.id === s.careerId);
+                        const career = careersList.find(c => c.id === s.careerId);
                         const avg = calculateGPA(s.grades);
                         return (
                           <div 
@@ -1694,7 +1432,7 @@ export default function App() {
                   </thead>
                   <tbody>
                     {topStudents.map(s => {
-                      const career = CAREERS.find(c => c.id === s.careerId);
+                      const career = careersList.find(c => c.id === s.careerId);
                       return (
                         <tr 
                           key={s.id} 
@@ -1863,7 +1601,7 @@ export default function App() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
                     >
                       <option value="ALL">Todas las Carreras</option>
-                      {CAREERS.map(c => (
+                      {careersList.map(c => (
                         <option key={c.id} value={c.id}>{c.id}</option>
                       ))}
                     </select>
@@ -1946,7 +1684,7 @@ export default function App() {
                       </tr>
                     ) : (
                       filteredStudents.map(s => {
-                        const career = CAREERS.find(c => c.id === s.careerId);
+                        const career = careersList.find(c => c.id === s.careerId);
                         const avg = calculateGPA(s.grades);
                         
                         return (
@@ -2170,7 +1908,7 @@ export default function App() {
                     className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-hidden"
                   >
                     <option value="ALL">Todas las Especialidades</option>
-                    {CAREERS.map(c => (
+                    {careersList.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -2238,7 +1976,7 @@ export default function App() {
                   </thead>
                   <tbody>
                     {filteredStudents.map(s => {
-                      const career = CAREERS.find(c => c.id === s.careerId);
+                      const career = careersList.find(c => c.id === s.careerId);
                       const avg = calculateGPA(s.grades);
                       return (
                         <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50 text-xs">
@@ -2319,7 +2057,7 @@ export default function App() {
                     onChange={(e) => setNewStudentCareer(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden font-semibold text-slate-700"
                   >
-                    {CAREERS.map(c => (
+                    {careersList.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -2425,7 +2163,7 @@ export default function App() {
                 <div className="relative z-10">
                   <div className="flex items-center justify-between gap-2 mb-4">
                     <span className="bg-blue-600 text-white text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-md">
-                      {CAREERS.find(c => c.id === selectedStudent.careerId)?.name || selectedStudent.careerId}
+                      {careersList.find(c => c.id === selectedStudent.careerId)?.name || selectedStudent.careerId}
                     </span>
                     <select
                       value={selectedStudent.status}
@@ -2707,7 +2445,7 @@ export default function App() {
                   </thead>
                   <tbody>
                     {students.filter(s => s.status === 'Alerta de Riesgo').map(s => {
-                      const career = CAREERS.find(c => c.id === s.careerId);
+                      const career = careersList.find(c => c.id === s.careerId);
                       const avg = calculateGPA(s.grades);
                       const lastLog = s.supportLogs[s.supportLogs.length - 1] || 'Sin bitácora inicial';
                       return (
