@@ -1192,11 +1192,7 @@ export default function App() {
                 <div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">{totalEnrolled}</span>
-                    <span className="text-emerald-500 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-0.5">
-                      <TrendingUp className="w-3 h-3" /> +4.2%
-                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-2">Capacidad global: {Math.round((totalEnrolled / 1340) * 100)}% de vacantes</p>
                 </div>
               </div>
 
