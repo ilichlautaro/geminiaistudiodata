@@ -1515,13 +1515,17 @@ export default function App() {
       {/* Sidebar Navigation */}
       <aside className="w-full md:w-64 bg-slate-900 text-white shrink-0 flex flex-col justify-between" id="cft-sidebar">
         <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
+          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className="flex items-center gap-3 mb-8 cursor-pointer hover:opacity-85 transition-all text-left w-full focus:outline-none"
+            id="brand-header-link"
+          >
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white shadow-md shadow-blue-500/20 text-lg">C</div>
             <div>
               <span className="font-extrabold tracking-tight text-xl italic block">360 Análisis</span>
               <span className="text-[10px] tracking-widest text-slate-400 uppercase font-bold block">Gestión e Información</span>
             </div>
-          </div>
+          </button>
           
           <nav className="space-y-1.5" id="cft-navigation-links">
             <button 
