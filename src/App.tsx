@@ -238,15 +238,8 @@ export default function App() {
   const [desercionSearch, setDesercionSearch] = useState('');
   const [desercionCareerFilter, setDesercionCareerFilter] = useState('ALL');
 
-  // Qualifications (Calificaciones) state loaded from localStorage or database
-  const [qualifications, setQualifications] = useState<Qualification[]>(() => {
-    try {
-      const saved = localStorage.getItem('local_qualifications');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  // Qualifications (Calificaciones) state loaded from Supabase database
+  const [qualifications, setQualifications] = useState<Qualification[]>([]);
 
   const [isImportGradesModalOpen, setIsImportGradesModalOpen] = useState(false);
   const [pendingImportData, setPendingImportData] = useState<Qualification[] | null>(null);
@@ -262,27 +255,13 @@ export default function App() {
   const dbTableRef = useRef<string>('estudiantes');
   const dbKeysCaseRef = useRef<'lower' | 'upper'>('lower');
 
-  // Local overrides handling to persist UI customization (grades, attendance, support logs)
+  // Local overrides disabled - strictly using data extracted from Supabase
   const getLocalOverride = (studentId: string) => {
-    try {
-      const key = `student_override_${studentId}`;
-      const existing = localStorage.getItem(key);
-      return existing ? JSON.parse(existing) : null;
-    } catch (e) {
-      return null;
-    }
+    return null;
   };
 
   const saveLocalOverride = (studentId: string, data: any) => {
-    try {
-      const key = `student_override_${studentId}`;
-      const existing = localStorage.getItem(key);
-      const parsed = existing ? JSON.parse(existing) : {};
-      const updated = { ...parsed, ...data };
-      localStorage.setItem(key, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Error saving local override", e);
-    }
+    // Disabled to strictly prioritize Supabase-only persistence
   };
 
   // Helper to get field case-insensitively (supports both UPPERCASE and lowercase keys)
@@ -614,19 +593,35 @@ export default function App() {
 
         // Fetch qualifications from Supabase
         try {
-          const { data: qData, error: qError } = await supabase
-            .from('calificaciones')
+          let loaded = false;
+          // Try 'Calificaciones' (capital C) first as requested
+          const { data: qDataTitle, error: qErrorTitle } = await supabase
+            .from('Calificaciones')
             .select('*');
-          if (!qError && qData) {
-            setQualifications(qData);
-            localStorage.setItem('local_qualifications', JSON.stringify(qData));
-          } else {
+          if (!qErrorTitle && qDataTitle) {
+            setQualifications(qDataTitle);
+            loaded = true;
+          }
+
+          if (!loaded) {
+            // Try lowercase 'calificaciones'
+            const { data: qData, error: qError } = await supabase
+              .from('calificaciones')
+              .select('*');
+            if (!qError && qData) {
+              setQualifications(qData);
+              loaded = true;
+            }
+          }
+
+          if (!loaded) {
+            // Try uppercase 'CALIFICACIONES'
             const { data: qUpperData, error: qUpperError } = await supabase
               .from('CALIFICACIONES')
               .select('*');
             if (!qUpperError && qUpperData) {
               setQualifications(qUpperData);
-              localStorage.setItem('local_qualifications', JSON.stringify(qUpperData));
+              loaded = true;
             }
           }
         } catch (qe) {
@@ -826,7 +821,9 @@ export default function App() {
     if (!selectedStudent) return [];
     const sRut = parseRut(selectedStudent.rut).rut;
     return qualifications.filter(q => {
-      const qRut = typeof q.RUT === 'number' ? q.RUT : parseInt(String(q.RUT).replace(/\D/g, ''), 10);
+      const rawRut = getFieldVal(q, 'RUT');
+      if (rawRut === undefined) return false;
+      const qRut = typeof rawRut === 'number' ? rawRut : parseInt(String(rawRut).replace(/\D/g, ''), 10);
       return qRut === sRut;
     });
   }, [selectedStudent, qualifications]);
@@ -844,23 +841,26 @@ export default function App() {
     } } = {};
 
     studentQualifications.forEach(q => {
-      const code = q.COD_CURSO || 'S/C';
+      const code = getFieldVal(q, 'COD_CURSO') || 'S/C';
       if (!groups[code]) {
         groups[code] = {
           courseCode: code,
-          courseName: q.NOMBRE_CURSO || 'Asignatura sin nombre',
-          teacher: q.NOMBRE_PROF || 'Docente no asignado',
-          finalGrade: Number(q.NOTA_FINAL_CURSO) || 0,
-          attendance: Number(q.PORCENTAJE_ASISTENCIA) || 0,
-          nivel: Number(q.NIVEL) || 1,
+          courseName: getFieldVal(q, 'NOMBRE_CURSO') || 'Asignatura sin nombre',
+          teacher: getFieldVal(q, 'NOMBRE_PROF') || 'Docente no asignado',
+          finalGrade: Number(getFieldVal(q, 'NOTA_FINAL_CURSO')) || 0,
+          attendance: Number(getFieldVal(q, 'PORCENTAJE_ASISTENCIA')) || 0,
+          nivel: Number(getFieldVal(q, 'NIVEL')) || 1,
           evaluations: []
         };
       }
-      if (q.ACTIVIDAD || q.NOTA_PARCIAL) {
+      const actividad = getFieldVal(q, 'ACTIVIDAD');
+      const notaParcial = getFieldVal(q, 'NOTA_PARCIAL');
+      const numNota = getFieldVal(q, 'NUM_NOTA');
+      if (actividad || notaParcial !== undefined) {
         groups[code].evaluations.push({
-          activity: q.ACTIVIDAD || `Nota ${q.NUM_NOTA || ''}`,
-          num: Number(q.NUM_NOTA) || 1,
-          grade: Number(q.NOTA_PARCIAL) || 0
+          activity: actividad || `Nota ${numNota || ''}`,
+          num: Number(numNota) || 1,
+          grade: Number(notaParcial) || 0
         });
       }
     });
@@ -1165,9 +1165,8 @@ export default function App() {
   };
 
   const handleSaveQualifications = async (data: Qualification[]) => {
-    // 1. Update local state & localStorage fallback
+    // 1. Update local state
     setQualifications(data);
-    localStorage.setItem('local_qualifications', JSON.stringify(data));
 
     // 2. Identify students from the qualifications dataset not enrolled in the student table
     const newStudentsToRegister: Student[] = [];
@@ -1223,46 +1222,45 @@ export default function App() {
     if (isSupabaseConfigured && supabase) {
       try {
         setIsSyncing(true);
-        // Clear old records first
-        const { error: deleteError } = await supabase
-          .from('calificaciones')
-          .delete()
-          .not('id', 'is', null);
+        let savedSuccess = false;
+        let lastError = null;
 
-        if (!deleteError) {
-          const batchSize = 100;
-          for (let i = 0; i < data.length; i += batchSize) {
-            const batch = data.slice(i, i + batchSize);
-            const { error: insertError } = await supabase
-              .from('calificaciones')
-              .insert(batch);
-            if (insertError) throw insertError;
-          }
-          alert("¡Calificaciones cargadas y sincronizadas con Supabase con éxito!");
-        } else {
-          // Upper case fallback
-          const { error: deleteUpperError } = await supabase
-            .from('CALIFICACIONES')
-            .delete()
-            .not('id', 'is', null);
+        const tableNames = ['Calificaciones', 'calificaciones', 'CALIFICACIONES'];
+        for (const tableName of tableNames) {
+          try {
+            // Clear old records first
+            const { error: deleteError } = await supabase
+              .from(tableName)
+              .delete()
+              .not('id', 'is', null);
 
-          if (!deleteUpperError) {
-            const batchSize = 100;
-            for (let i = 0; i < data.length; i += batchSize) {
-              const batch = data.slice(i, i + batchSize);
-              const { error: insertError } = await supabase
-                .from('CALIFICACIONES')
-                .insert(batch);
-              if (insertError) throw insertError;
+            if (!deleteError) {
+              const batchSize = 100;
+              for (let i = 0; i < data.length; i += batchSize) {
+                const batch = data.slice(i, i + batchSize);
+                const { error: insertError } = await supabase
+                  .from(tableName)
+                  .insert(batch);
+                if (insertError) throw insertError;
+              }
+              alert(`¡Calificaciones cargadas y sincronizadas con la tabla "${tableName}" en Supabase con éxito!`);
+              savedSuccess = true;
+              break;
+            } else {
+              // Try querying or inserting if delete fails (some schemas might not allow delete without columns)
+              lastError = deleteError;
             }
-            alert("¡Calificaciones cargadas y sincronizadas con Supabase con éxito!");
-          } else {
-            throw deleteError;
+          } catch (e: any) {
+            lastError = e;
           }
+        }
+
+        if (!savedSuccess) {
+          throw lastError || new Error("No se pudo escribir en ninguna de las tablas ('Calificaciones', 'calificaciones', 'CALIFICACIONES') de Supabase.");
         }
       } catch (err: any) {
         console.error("Error saving qualifications to Supabase:", err);
-        alert(`Las calificaciones se guardaron localmente, pero hubo un error con Supabase: ${err.message || JSON.stringify(err)}. Asegúrese de que la tabla 'calificaciones' exista en su base de datos.`);
+        alert(`Las calificaciones se guardaron localmente, pero hubo un error con Supabase: ${err.message || JSON.stringify(err)}. Asegúrese de que la tabla 'Calificaciones' exista en su base de datos.`);
       } finally {
         setIsSyncing(false);
       }
