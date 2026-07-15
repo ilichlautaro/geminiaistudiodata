@@ -53,6 +53,37 @@ interface SubjectGrades {
   [subjectName: string]: number;
 }
 
+interface Qualification {
+  NUMERO: number;
+  ANO: number;
+  PERIODO: number;
+  CODCLI: string;
+  RUT: number;
+  NOMBRE_ALUMNO: string;
+  ANO_INGRESO: number;
+  CAT_ALUMNO: string;
+  ESTADO_ALUMNO: string;
+  COD_SEDE: string;
+  NOMBRE_SEDE: string;
+  CARRERA_ALUM: string;
+  NOMBRE_CARRERA_ALUMNO: string;
+  REGIMEN_CARRERA_ALUMNO: string;
+  CODCARR_PLANIFICADA: string;
+  NOMBRE_CARRERA_PLANIFICADA: string;
+  JORNADA: string;
+  RUT_PROF: string;
+  NOMBRE_PROF: string;
+  NIVEL: number;
+  COD_CURSO: string;
+  NOMBRE_CURSO: string;
+  SECCION: string;
+  ACTIVIDAD: string;
+  NUM_NOTA: number;
+  NOTA_PARCIAL: number;
+  NOTA_FINAL_CURSO: number;
+  PORCENTAJE_ASISTENCIA: number;
+}
+
 interface Student {
   id: string;
   name: string;
@@ -66,6 +97,7 @@ interface Student {
   personalEmail?: string;
   phone: string;
   supportLogs: string[];
+  situacion?: string;
 }
 
 interface Career {
@@ -107,11 +139,27 @@ function getWhatsAppLink(phoneStr: string): string {
 
 export default function App() {
   // Navigation active tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'carreras' | 'estudiantes' | 'reportes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'carreras' | 'estudiantes' | 'reportes' | 'desercion'>('dashboard');
   
   // App-wide state
   const [students, setStudents] = useState<Student[]>([]);
   const [careersList, setCareersList] = useState<Career[]>(CAREERS);
+  const [desercionSearch, setDesercionSearch] = useState('');
+  const [desercionCareerFilter, setDesercionCareerFilter] = useState('ALL');
+
+  // Qualifications (Calificaciones) state loaded from localStorage or database
+  const [qualifications, setQualifications] = useState<Qualification[]>(() => {
+    try {
+      const saved = localStorage.getItem('local_qualifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [isImportGradesModalOpen, setIsImportGradesModalOpen] = useState(false);
+  const [pendingImportData, setPendingImportData] = useState<Qualification[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Supabase Syncing and UI Helper States
   const [isSyncing, setIsSyncing] = useState(false);
@@ -169,6 +217,7 @@ export default function App() {
     const correo = getFieldVal(dbStudent, 'CORREO') || '';
     const correoInst = getFieldVal(dbStudent, 'CORREO_INSTITUCIONAL') || '';
     const estado = getFieldVal(dbStudent, 'ESTADO') || 'NORMAL';
+    const situacion = getFieldVal(dbStudent, 'SITUACION') || '';
 
     // Format full name
     const fullName = [nombres, paterno, materno].map(s => String(s).trim()).filter(Boolean).join(' ');
@@ -176,15 +225,26 @@ export default function App() {
     // Format RUT (dots and hyphen)
     const formattedRut = formatRut(rutNum, dig);
 
-    // Map ESTADO to UI status
+    // Map ESTADO & SITUACION to UI status
     let status: Student['status'] = 'Regular';
     const cleanEstado = String(estado).toUpperCase().trim();
-    if (cleanEstado === 'ALERTA' || cleanEstado === 'ALERTA DE RIESGO' || cleanEstado === 'RIESGO') {
+    const cleanSituacion = String(situacion).toUpperCase().trim();
+
+    if (
+      cleanSituacion === 'DESERTOR' || 
+      cleanSituacion === 'DESERCIÓN' || 
+      cleanSituacion === 'DESERCION' || 
+      cleanSituacion.includes('DESER') || 
+      cleanSituacion === 'RETIRADO' || 
+      cleanEstado === 'RETIRADO' || 
+      cleanEstado === 'ELIMINADO' || 
+      cleanEstado === 'BAJA'
+    ) {
+      status = 'Retirado';
+    } else if (cleanEstado === 'ALERTA' || cleanEstado === 'ALERTA DE RIESGO' || cleanEstado === 'RIESGO') {
       status = 'Alerta de Riesgo';
     } else if (cleanEstado === 'SUSPENDIDO') {
       status = 'Suspendido';
-    } else if (cleanEstado === 'RETIRADO' || cleanEstado === 'ELIMINADO' || cleanEstado === 'BAJA') {
-      status = 'Retirado';
     }
 
     // Resolve or extract career ID
@@ -252,7 +312,8 @@ export default function App() {
       email: correoInst || correo || 'estudiante@cftpucv.cl',
       personalEmail: correo || '',
       phone: fono || '+56 9 0000 0000',
-      supportLogs: []
+      supportLogs: [],
+      situacion: situacion || estado || 'NORMAL'
     };
 
     // Blend overrides (customized grades, attendance, etc. edited in UI)
@@ -291,14 +352,16 @@ export default function App() {
     const matchedCareer = careersList.find(c => c.id === s.careerId);
     const nombreC = matchedCareer ? matchedCareer.name : 'Técnico en Informática';
 
-    // Map JS status back to ESTADO
+    // Map JS status back to ESTADO and SITUACION
     let estado = 'NORMAL';
+    let situacion = s.situacion || 'REGULAR';
     if (s.status === 'Alerta de Riesgo') {
       estado = 'ALERTA';
     } else if (s.status === 'Suspendido') {
       estado = 'SUSPENDIDO';
     } else if (s.status === 'Retirado') {
       estado = 'RETIRADO';
+      situacion = 'DESERTOR';
     }
 
     // Calculate cohorte based on semester
@@ -326,7 +389,8 @@ export default function App() {
       NOMBRE_C: nombreC,
       CORREO: s.email,
       CORREO_INSTITUCIONAL: s.email,
-      ESTADO: estado
+      ESTADO: estado,
+      SITUACION: situacion
     };
   };
 
@@ -456,6 +520,28 @@ export default function App() {
         // Convert the database entries to JavaScript students
         const jsStudents = activeStudents.map(s => mapDbStudentToJs(s, updatedCareers));
         setStudents(jsStudents);
+
+        // Fetch qualifications from Supabase
+        try {
+          const { data: qData, error: qError } = await supabase
+            .from('calificaciones')
+            .select('*');
+          if (!qError && qData) {
+            setQualifications(qData);
+            localStorage.setItem('local_qualifications', JSON.stringify(qData));
+          } else {
+            const { data: qUpperData, error: qUpperError } = await supabase
+              .from('CALIFICACIONES')
+              .select('*');
+            if (!qUpperError && qUpperData) {
+              setQualifications(qUpperData);
+              localStorage.setItem('local_qualifications', JSON.stringify(qUpperData));
+            }
+          }
+        } catch (qe) {
+          console.error("Error al cargar calificaciones desde Supabase:", qe);
+        }
+
         console.log(`Datos sincronizados exitosamente con Supabase (tabla ${finalTable}, llaves ${keysCase}).`);
       } catch (err: any) {
         console.error("Error al sincronizar con Supabase:", err);
@@ -517,45 +603,93 @@ export default function App() {
     }
   }, [careersList, newStudentCareer]);
 
+  // Helper to get real grades and attendance from qualifications
+  const getStudentRealGradesAndAttendance = (studentRut: string, fallbackGrades: SubjectGrades, fallbackAttendance: number) => {
+    const sRut = parseRut(studentRut).rut;
+    const studentQuals = qualifications.filter(q => {
+      const qRut = typeof q.RUT === 'number' ? q.RUT : parseInt(String(q.RUT).replace(/\D/g, ''), 10);
+      return qRut === sRut;
+    });
+
+    if (studentQuals.length === 0) {
+      return { grades: fallbackGrades, attendance: fallbackAttendance, hasRealData: false };
+    }
+
+    const courseGrades: SubjectGrades = {};
+    const courseAttendance: number[] = [];
+
+    studentQuals.forEach(q => {
+      const courseName = q.NOMBRE_CURSO || 'Curso';
+      if (q.NOTA_FINAL_CURSO) {
+        courseGrades[courseName] = Number(q.NOTA_FINAL_CURSO);
+      } else if (q.NOTA_PARCIAL && !courseGrades[courseName]) {
+        courseGrades[courseName] = Number(q.NOTA_PARCIAL);
+      }
+      
+      if (q.PORCENTAJE_ASISTENCIA !== undefined && q.PORCENTAJE_ASISTENCIA !== null) {
+        courseAttendance.push(Number(q.PORCENTAJE_ASISTENCIA));
+      }
+    });
+
+    const finalGrades = Object.keys(courseGrades).length > 0 ? courseGrades : fallbackGrades;
+    const finalAttendance = courseAttendance.length > 0 
+      ? Math.round(courseAttendance.reduce((a, b) => a + b, 0) / courseAttendance.length) 
+      : fallbackAttendance;
+
+    return { grades: finalGrades, attendance: finalAttendance, hasRealData: true };
+  };
+
+  const resolvedStudents = useMemo(() => {
+    return students.map(s => {
+      const { grades, attendance, hasRealData } = getStudentRealGradesAndAttendance(s.rut, s.grades, s.attendance);
+      return {
+        ...s,
+        grades,
+        attendance,
+        hasRealData
+      };
+    });
+  }, [students, qualifications]);
+
   // Dynamic calculations based on state
   const totalEnrolled = useMemo(() => {
-    return students.filter(s => s.status !== 'Retirado').length;
-  }, [students]);
+    return resolvedStudents.filter(s => s.status !== 'Retirado').length;
+  }, [resolvedStudents]);
 
   const totalDeserted = useMemo(() => {
-    return students.filter(s => s.status === 'Retirado').length;
-  }, [students]);
+    return resolvedStudents.filter(s => s.status === 'Retirado').length;
+  }, [resolvedStudents]);
 
   const overallDropoutRate = useMemo(() => {
-    const totalCount = students.length;
+    const totalCount = resolvedStudents.length;
     if (totalCount === 0) return 0;
     return Math.round((totalDeserted / totalCount) * 1000) / 10;
-  }, [students, totalDeserted]);
+  }, [resolvedStudents, totalDeserted]);
 
   const overallAverageGPA = useMemo(() => {
-    const activeStudents = students.filter(s => s.status !== 'Retirado');
+    const activeStudents = resolvedStudents.filter(s => s.status !== 'Retirado');
     if (activeStudents.length === 0) return 0;
     const totalSum = activeStudents.reduce((sum, s) => sum + calculateGPA(s.grades), 0);
     return Math.round((totalSum / activeStudents.length) * 10) / 10;
-  }, [students]);
+  }, [resolvedStudents]);
 
   const studentsAtRiskCount = useMemo(() => {
-    return students.filter(s => s.status === 'Alerta de Riesgo').length;
-  }, [students]);
+    return resolvedStudents.filter(s => s.status === 'Alerta de Riesgo').length;
+  }, [resolvedStudents]);
 
   // Top Promedios (Outstanding students list)
   const topStudents = useMemo(() => {
-    return [...students]
+    return [...resolvedStudents]
       .filter(s => s.status === 'Regular')
       .map(s => ({ ...s, gpa: calculateGPA(s.grades) }))
       .sort((a, b) => b.gpa - a.gpa)
       .slice(0, 5);
-  }, [students]);
+  }, [resolvedStudents]);
 
   // Career specific consolidated statistics
   const careerStats = useMemo(() => {
     return careersList.map(career => {
-      const careerStudents = students.filter(s => s.careerId === career.id);
+      const careerStudents = resolvedStudents.filter(s => s.careerId === career.id);
       const active = careerStudents.filter(s => s.status !== 'Retirado');
       const withdrawn = careerStudents.filter(s => s.status === 'Retirado');
       const totalCount = careerStudents.length;
@@ -576,16 +710,16 @@ export default function App() {
         totalEnrolled: totalCount
       };
     });
-  }, [students, careersList]);
+  }, [resolvedStudents, careersList]);
 
   // Selected Student object
   const selectedStudent = useMemo(() => {
-    return students.find(s => s.id === selectedStudentId) || null;
-  }, [students, selectedStudentId]);
+    return resolvedStudents.find(s => s.id === selectedStudentId) || null;
+  }, [resolvedStudents, selectedStudentId]);
 
   // Filtered student database list
   const filteredStudents = useMemo(() => {
-    return students.filter(s => {
+    return resolvedStudents.filter(s => {
       const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           s.rut.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           s.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -594,7 +728,54 @@ export default function App() {
       const matchSemester = selectedSemesterFilter === 'ALL' || s.semester === Number(selectedSemesterFilter);
       return matchSearch && matchCareer && matchStatus && matchSemester;
     });
-  }, [students, searchQuery, selectedCareerFilter, selectedStatusFilter, selectedSemesterFilter]);
+  }, [resolvedStudents, searchQuery, selectedCareerFilter, selectedStatusFilter, selectedSemesterFilter]);
+
+  // Find qualifications for the selected student
+  const studentQualifications = useMemo(() => {
+    if (!selectedStudent) return [];
+    const sRut = parseRut(selectedStudent.rut).rut;
+    return qualifications.filter(q => {
+      const qRut = typeof q.RUT === 'number' ? q.RUT : parseInt(String(q.RUT).replace(/\D/g, ''), 10);
+      return qRut === sRut;
+    });
+  }, [selectedStudent, qualifications]);
+
+  // Group student qualifications by course code
+  const groupedQualifications = useMemo(() => {
+    const groups: { [courseCode: string]: {
+      courseName: string;
+      courseCode: string;
+      teacher: string;
+      finalGrade: number;
+      attendance: number;
+      nivel: number;
+      evaluations: { activity: string; num: number; grade: number }[];
+    } } = {};
+
+    studentQualifications.forEach(q => {
+      const code = q.COD_CURSO || 'S/C';
+      if (!groups[code]) {
+        groups[code] = {
+          courseCode: code,
+          courseName: q.NOMBRE_CURSO || 'Asignatura sin nombre',
+          teacher: q.NOMBRE_PROF || 'Docente no asignado',
+          finalGrade: Number(q.NOTA_FINAL_CURSO) || 0,
+          attendance: Number(q.PORCENTAJE_ASISTENCIA) || 0,
+          nivel: Number(q.NIVEL) || 1,
+          evaluations: []
+        };
+      }
+      if (q.ACTIVIDAD || q.NOTA_PARCIAL) {
+        groups[code].evaluations.push({
+          activity: q.ACTIVIDAD || `Nota ${q.NUM_NOTA || ''}`,
+          num: Number(q.NUM_NOTA) || 1,
+          grade: Number(q.NOTA_PARCIAL) || 0
+        });
+      }
+    });
+
+    return Object.values(groups);
+  }, [studentQualifications]);
 
   // Helper to persist student data to Supabase (asynchronously)
   const persistStudentToSupabase = async (student: Student) => {
@@ -761,6 +942,242 @@ export default function App() {
       return s;
     }));
     setTempSupportLog('');
+  };
+
+  // --- QUALIFICATIONS CSV PARSING & PERSISTENCE ENGINE ---
+  const handleParseQualificationsCSV = (fileText: string) => {
+    const lines = fileText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    if (lines.length < 2) {
+      alert("El archivo CSV no contiene suficientes líneas (encabezado + datos).");
+      return null;
+    }
+
+    const headerLine = lines[0];
+    let delimiter = ',';
+    if (headerLine.includes('\t')) {
+      delimiter = '\t';
+    } else if (headerLine.includes(';')) {
+      delimiter = ';';
+    }
+
+    const headers = headerLine.split(delimiter).map(h => h.replace(/^["']|["']$/g, '').trim().toUpperCase());
+    const parsedData: Qualification[] = [];
+
+    const getColIndex = (colNames: string[]) => {
+      for (const col of colNames) {
+        const idx = headers.indexOf(col.toUpperCase());
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    };
+
+    const idxNumero = getColIndex(['NUMERO', 'Número', 'NÚMERO']);
+    const idxAno = getColIndex(['ANO', 'AÑO', 'ANIO']);
+    const idxPeriodo = getColIndex(['PERIODO', 'PERÍODO']);
+    const idxCodcli = getColIndex(['CODCLI']);
+    const idxRut = getColIndex(['RUT']);
+    const idxNombreAlumno = getColIndex(['NOMBRE_ALUMNO', 'NOMBRE', 'ALUMNO']);
+    const idxAnoIngreso = getColIndex(['ANO_INGRESO', 'AÑO_INGRESO', 'INGRESO']);
+    const idxCatAlumno = getColIndex(['CAT_ALUMNO', 'CATEGORIA', 'CAT']);
+    const idxEstadoAlumno = getColIndex(['ESTADO_ALUMNO', 'ESTADO_ALUM', 'ESTADO']);
+    const idxCodSede = getColIndex(['COD_SEDE', 'SEDE']);
+    const idxNombreSede = getColIndex(['NOMBRE_SEDE']);
+    const idxCarreraAlum = getColIndex(['CARRERA_ALUM', 'CARRERA']);
+    const idxNombreCarreraAlumno = getColIndex(['NOMBRE_CARRERA_ALUMNO', 'NOMBRE_CARRERA']);
+    const idxRegimenCarrera = getColIndex(['REGIMEN_CARRERA_ALUMNO', 'REGIMEN']);
+    const idxCodCarrPlanificada = getColIndex(['CODCARR_PLANIFICADA']);
+    const idxNombreCarreraPlan = getColIndex(['NOMBRE_CARRERA_PLANIFICADA']);
+    const idxJornada = getColIndex(['JORNADA']);
+    const idxRutProf = getColIndex(['RUT_PROF', 'PROFESOR_RUT']);
+    const idxNombreProf = getColIndex(['NOMBRE_PROF', 'PROFESOR', 'NOMBRE_PROFESOR']);
+    const idxNivel = getColIndex(['NIVEL']);
+    const idxCodCurso = getColIndex(['COD_CURSO', 'CURSO_COD']);
+    const idxNombreCurso = getColIndex(['NOMBRE_CURSO', 'CURSO', 'NOMBRE_CURSO_ALUMNO']);
+    const idxSeccion = getColIndex(['SECCION', 'SECCIÓN']);
+    const idxActividad = getColIndex(['ACTIVIDAD']);
+    const idxNumNota = getColIndex(['NUM_NOTA', 'NUMERO_NOTA']);
+    const idxNotaParcial = getColIndex(['NOTA_PARCIAL', 'PARCIAL']);
+    const idxNotaFinal = getColIndex(['NOTA_FINAL_CURSO', 'NOTA_FINAL', 'FINAL']);
+    const idxPorcentajeAsistencia = getColIndex(['PORCENTAJE_ASISTENCIA', 'ASISTENCIA', 'PORCENTAJE_ASIS']);
+
+    if (idxRut === -1) {
+      alert("No se pudo encontrar la columna obligatoria RUT. Verifique el encabezado del archivo CSV.");
+      return null;
+    }
+
+    const parseSpanishFloat = (val: string): number => {
+      if (!val) return 0;
+      const cleanVal = val.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+      return parseFloat(cleanVal) || 0;
+    };
+
+    const parseSpanishInt = (val: string): number => {
+      if (!val) return 0;
+      const cleanVal = val.replace(/[^0-9]/g, '');
+      return parseInt(cleanVal, 10) || 0;
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line) continue;
+
+      let cols: string[] = [];
+      if (delimiter === ',') {
+        cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+      } else {
+        cols = line.split(delimiter);
+      }
+
+      cols = cols.map(c => c.replace(/^["']|["']$/g, '').trim());
+
+      const rValStr = cols[idxRut] || '';
+      if (!rValStr) continue;
+
+      const { rut: rutNum } = parseRut(rValStr);
+      if (!rutNum) continue;
+
+      const qRow: Qualification = {
+        NUMERO: idxNumero !== -1 ? parseSpanishInt(cols[idxNumero]) : i,
+        ANO: idxAno !== -1 ? parseSpanishInt(cols[idxAno]) : 2026,
+        PERIODO: idxPeriodo !== -1 ? parseSpanishInt(cols[idxPeriodo]) : 1,
+        CODCLI: idxCodcli !== -1 ? cols[idxCodcli] || '' : '',
+        RUT: rutNum,
+        NOMBRE_ALUMNO: idxNombreAlumno !== -1 ? cols[idxNombreAlumno] || '' : '',
+        ANO_INGRESO: idxAnoIngreso !== -1 ? parseSpanishInt(cols[idxAnoIngreso]) : 2025,
+        CAT_ALUMNO: idxCatAlumno !== -1 ? cols[idxCatAlumno] || 'NORMAL' : 'NORMAL',
+        ESTADO_ALUMNO: idxEstadoAlumno !== -1 ? cols[idxEstadoAlumno] || 'VIGENTE' : 'VIGENTE',
+        COD_SEDE: idxCodSede !== -1 ? cols[idxCodSede] || '' : '',
+        NOMBRE_SEDE: idxNombreSede !== -1 ? cols[idxNombreSede] || '' : '',
+        CARRERA_ALUM: idxCarreraAlum !== -1 ? cols[idxCarreraAlum] || '' : '',
+        NOMBRE_CARRERA_ALUMNO: idxNombreCarreraAlumno !== -1 ? cols[idxNombreCarreraAlumno] || '' : '',
+        REGIMEN_CARRERA_ALUMNO: idxRegimenCarrera !== -1 ? cols[idxRegimenCarrera] || 'SEMESTRAL' : 'SEMESTRAL',
+        CODCARR_PLANIFICADA: idxCodCarrPlanificada !== -1 ? cols[idxCodCarrPlanificada] || '' : '',
+        NOMBRE_CARRERA_PLANIFICADA: idxNombreCarreraPlan !== -1 ? cols[idxNombreCarreraPlan] || '' : '',
+        JORNADA: idxJornada !== -1 ? cols[idxJornada] || 'D' : 'D',
+        RUT_PROF: idxRutProf !== -1 ? cols[idxRutProf] || '' : '',
+        NOMBRE_PROF: idxNombreProf !== -1 ? cols[idxNombreProf] || '' : '',
+        NIVEL: idxNivel !== -1 ? parseSpanishInt(cols[idxNivel]) : 1,
+        COD_CURSO: idxCodCurso !== -1 ? cols[idxCodCurso] || '' : '',
+        NOMBRE_CURSO: idxNombreCurso !== -1 ? cols[idxNombreCurso] || '' : '',
+        SECCION: idxSeccion !== -1 ? cols[idxSeccion] || '1' : '1',
+        ACTIVIDAD: idxActividad !== -1 ? cols[idxActividad] || '' : '',
+        NUM_NOTA: idxNumNota !== -1 ? parseSpanishInt(cols[idxNumNota]) : 1,
+        NOTA_PARCIAL: idxNotaParcial !== -1 ? parseSpanishFloat(cols[idxNotaParcial]) : 0,
+        NOTA_FINAL_CURSO: idxNotaFinal !== -1 ? parseSpanishFloat(cols[idxNotaFinal]) : 0,
+        PORCENTAJE_ASISTENCIA: idxPorcentajeAsistencia !== -1 ? parseSpanishInt(cols[idxPorcentajeAsistencia]) : 100
+      };
+
+      parsedData.push(qRow);
+    }
+
+    return parsedData;
+  };
+
+  const handleSaveQualifications = async (data: Qualification[]) => {
+    // 1. Update local state & localStorage fallback
+    setQualifications(data);
+    localStorage.setItem('local_qualifications', JSON.stringify(data));
+
+    // 2. Identify students from the qualifications dataset not enrolled in the student table
+    const newStudentsToRegister: Student[] = [];
+    const existingRuts = new Set(students.map(s => parseRut(s.rut).rut));
+
+    const importedStudentsMap = new Map<number, { name: string; career: string; careerCode: string; estado: string; anoIngreso: number }>();
+    data.forEach(q => {
+      if (q.RUT && !existingRuts.has(q.RUT)) {
+        importedStudentsMap.set(q.RUT, {
+          name: q.NOMBRE_ALUMNO,
+          career: q.NOMBRE_CARRERA_ALUMNO || q.NOMBRE_CARRERA_PLANIFICADA || 'ADMINISTRACIÓN DE EMPRESAS',
+          careerCode: q.CARRERA_ALUM || q.CODCARR_PLANIFICADA || 'LGADM',
+          estado: q.ESTADO_ALUMNO || 'VIGENTE',
+          anoIngreso: q.ANO_INGRESO || 2025
+        });
+      }
+    });
+
+    importedStudentsMap.forEach((studentInfo, rutNum) => {
+      const names = studentInfo.name.split(/\s+/);
+      const isRetirado = ['RETIRADO', 'DESERTOR', 'BAJA'].some(st => studentInfo.estado.toUpperCase().includes(st));
+      const status: Student['status'] = isRetirado ? 'Retirado' : 'Regular';
+      
+      const newStudent: Student = {
+        id: String(rutNum),
+        name: studentInfo.name,
+        rut: formatRut(rutNum, 'K'),
+        careerId: studentInfo.careerCode,
+        semester: 2026 - studentInfo.anoIngreso >= 1 ? (2026 - studentInfo.anoIngreso) * 2 + 1 : 1,
+        attendance: 90,
+        status: status,
+        grades: {},
+        email: `${names[0].toLowerCase()}.${(names[1] || '').toLowerCase()}@cftacademia.cl`,
+        phone: '+56 9 8888 8888',
+        supportLogs: ['Registrado automáticamente mediante carga de CSV de calificaciones'],
+        situacion: studentInfo.estado
+      };
+
+      newStudentsToRegister.push(newStudent);
+    });
+
+    if (newStudentsToRegister.length > 0) {
+      const confirmImport = window.confirm(`Se detectaron ${newStudentsToRegister.length} estudiantes en las calificaciones que no están matriculados en el sistema.\n¿Desea matricularlos automáticamente para vincular sus notas?`);
+      if (confirmImport) {
+        setStudents(prev => [...prev, ...newStudentsToRegister]);
+        for (const s of newStudentsToRegister) {
+          await persistStudentToSupabase(s);
+        }
+      }
+    }
+
+    // 3. Persist qualifications table to Supabase if available
+    if (isSupabaseConfigured && supabase) {
+      try {
+        setIsSyncing(true);
+        // Clear old records first
+        const { error: deleteError } = await supabase
+          .from('calificaciones')
+          .delete()
+          .not('id', 'is', null);
+
+        if (!deleteError) {
+          const batchSize = 100;
+          for (let i = 0; i < data.length; i += batchSize) {
+            const batch = data.slice(i, i + batchSize);
+            const { error: insertError } = await supabase
+              .from('calificaciones')
+              .insert(batch);
+            if (insertError) throw insertError;
+          }
+          alert("¡Calificaciones cargadas y sincronizadas con Supabase con éxito!");
+        } else {
+          // Upper case fallback
+          const { error: deleteUpperError } = await supabase
+            .from('CALIFICACIONES')
+            .delete()
+            .not('id', 'is', null);
+
+          if (!deleteUpperError) {
+            const batchSize = 100;
+            for (let i = 0; i < data.length; i += batchSize) {
+              const batch = data.slice(i, i + batchSize);
+              const { error: insertError } = await supabase
+                .from('CALIFICACIONES')
+                .insert(batch);
+              if (insertError) throw insertError;
+            }
+            alert("¡Calificaciones cargadas y sincronizadas con Supabase con éxito!");
+          } else {
+            throw deleteError;
+          }
+        }
+      } catch (err: any) {
+        console.error("Error saving qualifications to Supabase:", err);
+        alert(`Las calificaciones se guardaron localmente, pero hubo un error con Supabase: ${err.message || JSON.stringify(err)}. Asegúrese de que la tabla 'calificaciones' exista en su base de datos.`);
+      } finally {
+        setIsSyncing(false);
+      }
+    } else {
+      alert("¡Calificaciones guardadas en el almacenamiento local del navegador!");
+    }
   };
 
   // Export Filtered Student Data as CSV file
@@ -1010,7 +1427,7 @@ export default function App() {
           <div className="flex items-center gap-3 mb-8">
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white shadow-md shadow-blue-500/20 text-lg">C</div>
             <div>
-              <span className="font-extrabold tracking-tight text-xl italic block">CFT Academia</span>
+              <span className="font-extrabold tracking-tight text-xl italic block">360 Análisis</span>
               <span className="text-[10px] tracking-widest text-slate-400 uppercase font-bold block">Gestión e Información</span>
             </div>
           </div>
@@ -1066,6 +1483,19 @@ export default function App() {
             >
               <FileText className="w-5 h-5" />
               Reportes & Alertas
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('desercion')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm ${
+                activeTab === 'desercion' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30 font-bold border border-blue-500/20' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              id="nav-link-desercion"
+            >
+              <TrendingDown className="w-5 h-5" />
+              Deserción
             </button>
           </nav>
         </div>
@@ -1144,20 +1574,31 @@ export default function App() {
               {activeTab === 'dashboard' && 'Tablero de Control Académico'}
               {activeTab === 'carreras' && 'Estadísticas de Carreras'}
               {activeTab === 'estudiantes' && 'Registro General de Estudiantes'}
-              {activeTab === 'reportes' && 'Reportes & Análisis de Deserción'}
+              {activeTab === 'reportes' && 'Reportes & Alertas'}
+              {activeTab === 'desercion' && 'Análisis de Deserción Escolar'}
             </h1>
             <p className="text-slate-500 text-sm mt-0.5">
               {activeTab === 'dashboard' && 'Consolidado general de rendimiento, matrículas y alertas de retención.'}
               {activeTab === 'carreras' && 'Distribución, vacantes de matrículas y promedios por carrera técnica.'}
               {activeTab === 'estudiantes' && 'Búsqueda, visualización de fichas y edición de calificaciones.'}
               {activeTab === 'reportes' && 'Gráficos cruzados de asistencia vs. notas y herramientas de exportación.'}
+              {activeTab === 'desercion' && 'Análisis de permanencia por carrera y listado de alumnos en situación de deserción (SITUACION).'}
             </p>
           </div>
 
           <div className="flex gap-2.5 w-full sm:w-auto shrink-0" id="cft-header-actions">
             <button 
+              onClick={() => setIsImportGradesModalOpen(true)}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 transition-all text-sm cursor-pointer"
+              id="action-btn-import-grades"
+              title="Importar CSV de Calificaciones (Segunda Tabla)"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Importar Calificaciones</span>
+            </button>
+            <button 
               onClick={() => setIsNewStudentModalOpen(true)}
-              className="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 transition-all text-sm"
+              className="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 transition-all text-sm cursor-pointer"
               id="action-btn-new-student"
             >
               <UserPlus className="w-4 h-4" />
@@ -1165,7 +1606,7 @@ export default function App() {
             </button>
             <button 
               onClick={handleExportCSV}
-              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-100 bg-white rounded-xl flex items-center justify-center gap-2 font-semibold text-slate-700 transition-all text-sm"
+              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-100 bg-white rounded-xl flex items-center justify-center gap-2 font-semibold text-slate-700 transition-all text-sm cursor-pointer"
               id="action-btn-export"
               title="Exportar base de datos según filtros"
             >
@@ -1839,7 +2280,7 @@ export default function App() {
                       <text x="350" y="95" className="text-[8px] fill-rose-500 font-bold">Umbral de Aprobación (4.0)</text>
 
                       {/* Scatter Dots representing real students in database */}
-                      {students.map((student) => {
+                      {resolvedStudents.map((student) => {
                         const avg = calculateGPA(student.grades);
                         // Map attendance 0-100% to X 40-480
                         const x = 40 + (student.attendance / 100) * 440;
@@ -2008,6 +2449,271 @@ export default function App() {
 
             </div>
 
+          </div>
+        )}
+
+        {/* TAB 5: DESERCIÓN (ANÁLISIS DE DESERCIÓN) */}
+        {activeTab === 'desercion' && (
+          <div className="space-y-6" id="view-desercion animate-fade-in">
+            {/* KPI Cards Row */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5" id="desercion-kpis">
+              {/* Card 1: Total Estudiantes (Histórico) */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs flex items-center justify-between transition-all hover:border-slate-300" id="card-desercion-total">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Matrícula Histórica</p>
+                  <p className="text-3xl font-black text-slate-800 mt-1">{students.length}</p>
+                  <p className="text-xs text-slate-500 mt-1.5 font-medium">Alumnos ingresados totales</p>
+                </div>
+                <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
+                  <Users className="w-6 h-6" />
+                </div>
+              </div>
+
+              {/* Card 2: Total Desertores */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs flex items-center justify-between transition-all hover:border-slate-300" id="card-desercion-desertores">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estudiantes Desertores</p>
+                  <p className="text-3xl font-black text-red-600 mt-1">{totalDeserted}</p>
+                  <p className="text-xs text-slate-500 mt-1.5 font-medium">Estatus "Retirado" o deserción</p>
+                </div>
+                <div className="w-12 h-12 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center text-red-500">
+                  <TrendingDown className="w-6 h-6" />
+                </div>
+              </div>
+
+              {/* Card 3: Tasa de Deserción Global */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs flex items-center justify-between transition-all hover:border-slate-300" id="card-desercion-tasa">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tasa de Deserción</p>
+                  <p className="text-3xl font-black text-slate-800 mt-1">{overallDropoutRate}%</p>
+                  <p className="text-xs text-slate-500 mt-1.5 font-medium">Porcentaje global de retiro</p>
+                </div>
+                <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
+                  <Award className="w-6 h-6" />
+                </div>
+              </div>
+
+              {/* Card 4: Alumnos Activos */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs flex items-center justify-between transition-all hover:border-slate-300" id="card-desercion-activos">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Alumnos Activos</p>
+                  <p className="text-3xl font-black text-emerald-600 mt-1">{resolvedStudents.length - totalDeserted}</p>
+                  <p className="text-xs text-slate-500 mt-1.5 font-medium">Regular / Alerta / Suspendido</p>
+                </div>
+                <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center text-emerald-500">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Career analysis section */}
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs" id="desercion-career-analysis">
+              <div className="border-b border-slate-100 pb-4 mb-5">
+                <h3 className="font-extrabold text-slate-800 text-base">Análisis de Deserción por Carrera Técnica</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Distribución porcentual y cantidad de alumnos desertores (SITUACION) por especialidad.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="desercion-career-grid">
+                {careerStats.map(c => {
+                  const careerStudents = resolvedStudents.filter(s => s.careerId === c.id);
+                  const totalwithdrawn = careerStudents.filter(s => s.status === 'Retirado').length;
+                  const percent = careerStudents.length > 0 ? Math.round((totalwithdrawn / careerStudents.length) * 100) : 0;
+                  
+                  return (
+                    <div key={c.id} className="border border-slate-150 rounded-2xl p-5 hover:bg-slate-50/50 transition-all flex flex-col justify-between" id={`career-desertion-card-${c.id}`}>
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className={`w-3 h-3 rounded-full ${c.color}`}></span>
+                          <h4 className="font-bold text-xs text-slate-700 uppercase tracking-wide truncate" title={c.name}>{c.name}</h4>
+                        </div>
+                        
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="text-xs text-slate-400 font-medium">Total Matriculados:</span>
+                          <span className="text-xs font-extrabold text-slate-700">{careerStudents.length}</span>
+                        </div>
+
+                        <div className="flex items-baseline justify-between mt-1.5">
+                          <span className="text-xs text-slate-400 font-medium">Desertores (Retirados):</span>
+                          <span className="text-sm font-black text-red-600">{totalwithdrawn}</span>
+                        </div>
+
+                        <div className="flex items-baseline justify-between mt-1.5">
+                          <span className="text-xs text-slate-400 font-medium">Tasa de Deserción:</span>
+                          <span className="text-sm font-black text-slate-800">{percent}%</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="w-full bg-slate-100 rounded-full h-2">
+                          <div 
+                            className="bg-red-500 h-2 rounded-full transition-all duration-500" 
+                            style={{ width: `${Math.min(100, percent)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* List of desertores */}
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs" id="desercion-students-section">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-5">
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-base">Fichas de Estudiantes Desertores</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Nombres, detalles de contacto y situación oficial de la matrícula.</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Search bar */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input 
+                      type="text" 
+                      value={desercionSearch}
+                      onChange={(e) => setDesercionSearch(e.target.value)}
+                      placeholder="Buscar por nombre, RUT..."
+                      className="bg-slate-50 border border-slate-200 text-xs font-semibold rounded-xl pl-9 pr-4 py-2.5 w-full sm:w-64 focus:bg-white focus:outline-hidden transition-all text-slate-700 font-medium"
+                    />
+                    {desercionSearch && (
+                      <button 
+                        onClick={() => setDesercionSearch('')}
+                        className="p-1 text-slate-400 hover:text-slate-600 absolute right-2.5 top-2.5 rounded-lg"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Career Filter */}
+                  <select 
+                    value={desercionCareerFilter}
+                    onChange={(e) => setDesercionCareerFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-3.5 py-2.5 text-slate-600 focus:bg-white focus:outline-hidden transition-all"
+                  >
+                    <option value="ALL">Todas las Carreras</option>
+                    {careersList.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Desertores List Table */}
+              <div className="overflow-x-auto">
+                {resolvedStudents.filter(s => s.status === 'Retirado').filter(s => desercionCareerFilter === 'ALL' || s.careerId === desercionCareerFilter).filter(s => {
+                  if (!desercionSearch) return true;
+                  const query = desercionSearch.toLowerCase();
+                  return s.name.toLowerCase().includes(query) || s.rut.toLowerCase().includes(query);
+                }).length > 0 ? (
+                  <table className="w-full text-left" id="desercion-table">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 text-[10px] uppercase tracking-wider font-extrabold pb-3">
+                        <th className="py-3 px-4">Estudiante</th>
+                        <th className="py-3 px-4">RUT</th>
+                        <th className="py-3 px-4">Carrera</th>
+                        <th className="py-3 px-4 text-center">Cohorte</th>
+                        <th className="py-3 px-4 text-center">U. Asistencia</th>
+                        <th className="py-3 px-4 text-center">U. Promedio</th>
+                        <th className="py-3 px-4">SITUACIÓN (SITUACION)</th>
+                        <th className="py-3 px-4 text-right">Contacto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {resolvedStudents
+                        .filter(s => s.status === 'Retirado')
+                        .filter(s => desercionCareerFilter === 'ALL' || s.careerId === desercionCareerFilter)
+                        .filter(s => {
+                          if (!desercionSearch) return true;
+                          const query = desercionSearch.toLowerCase();
+                          return s.name.toLowerCase().includes(query) || s.rut.toLowerCase().includes(query);
+                        })
+                        .map(s => {
+                          const career = careersList.find(c => c.id === s.careerId);
+                          const avg = calculateGPA(s.grades);
+                          const rawSituacion = s.situacion || 'RETIRADO';
+                          
+                          return (
+                            <tr 
+                              key={s.id} 
+                              className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer group text-xs animate-fade-in"
+                              onClick={() => setSelectedStudentId(s.id)}
+                              id={`student-row-desercion-${s.id}`}
+                            >
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform uppercase">
+                                    {s.name.slice(0, 2)}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">{s.name}</p>
+                                    <p className="text-[10px] text-slate-400 mt-0.5">Estudiante ID: {s.id}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 font-mono text-slate-500 font-medium">{s.rut}</td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${career?.color || 'bg-slate-400'}`}></span>
+                                  <span className="text-slate-600 font-medium truncate max-w-[200px]" title={career?.name}>{career?.name || s.careerId}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-center font-semibold text-slate-500">2025</td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="font-bold text-red-600">{s.attendance}%</span>
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="font-extrabold text-slate-700">{avg}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2.5 py-1 bg-red-50 text-red-600 rounded-full font-bold text-[10px] tracking-wide uppercase border border-red-100">
+                                  {rawSituacion}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-end gap-1.5">
+                                  <a 
+                                    href={`mailto:${s.email}`}
+                                    className="p-1.5 hover:bg-blue-50 text-blue-500 hover:text-blue-700 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                    title={`Enviar correo institucional a ${s.email}`}
+                                  >
+                                    <Mail className="w-4 h-4" />
+                                  </a>
+                                  {s.personalEmail && (
+                                    <a 
+                                      href={`mailto:${s.personalEmail}`}
+                                      className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg transition-colors border border-transparent hover:border-slate-200"
+                                      title={`Enviar correo personal a ${s.personalEmail}`}
+                                    >
+                                      <Mail className="w-4 h-4 text-emerald-600" />
+                                    </a>
+                                  )}
+                                  <a 
+                                    href={`https://wa.me/${s.phone.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1.5 hover:bg-emerald-50 text-emerald-500 hover:text-emerald-700 rounded-lg transition-colors border border-transparent hover:border-emerald-100"
+                                    title={`Enviar mensaje de WhatsApp al ${s.phone}`}
+                                  >
+                                    <Phone className="w-4 h-4" />
+                                  </a>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-center py-12 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    <TrendingDown className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-slate-500">No se encontraron estudiantes desertores</p>
+                    <p className="text-xs text-slate-400 mt-1">Intente cambiar la carrera seleccionada o refine su búsqueda.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -2247,6 +2953,73 @@ export default function App() {
                     <span>{selectedStudent.phone}</span>
                   </a>
                 </div>
+              </div>
+
+              {/* Linked Historical Qualifications Table */}
+              <div className="space-y-4 mb-8 border border-slate-150 rounded-3xl p-5 bg-slate-50/50" id="linked-qualifications-module">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-emerald-600" />
+                    Asignaturas y Calificaciones Oficiales (Segunda Tabla)
+                  </h4>
+                  <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-200">
+                    Sincronizado por RUT
+                  </span>
+                </div>
+
+                {studentQualifications.length > 0 ? (
+                  <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                    {groupedQualifications.map((course) => (
+                      <div key={course.courseCode} className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+                          <div className="max-w-[70%]">
+                            <span className="bg-slate-100 text-slate-700 text-[9px] font-bold px-2 py-0.5 rounded-sm mr-2 font-mono">
+                              {course.courseCode}
+                            </span>
+                            <strong className="text-slate-800 text-xs font-bold">{course.courseName}</strong>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Docente: {course.teacher} | Semestre Nivel: {course.nivel}</p>
+                          </div>
+                          
+                          <div className="flex gap-2 text-right self-end sm:self-center shrink-0">
+                            <div className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-center min-w-[56px]">
+                              <span className="text-[8px] text-slate-400 font-bold block uppercase">Asistencia</span>
+                              <span className="text-[11px] font-black text-slate-700">{course.attendance}%</span>
+                            </div>
+                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg px-2 py-1 text-center min-w-[56px]">
+                              <span className="text-[8px] text-emerald-600 font-bold block uppercase">Final</span>
+                              <span className={`text-[11px] font-black ${course.finalGrade < 4.0 ? 'text-rose-600' : 'text-emerald-600'}`}>{course.finalGrade.toFixed(1)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* List of evaluations within this course */}
+                        {course.evaluations.length > 0 && (
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-[10px]">
+                            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 block">Evaluaciones Parciales</span>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                              {course.evaluations.map((evalItem, idx) => (
+                                <div key={idx} className="bg-white rounded-lg p-1.5 flex items-center justify-between border border-slate-150">
+                                  <span className="text-[9px] text-slate-500 truncate font-semibold" title={evalItem.activity}>
+                                    {evalItem.activity}
+                                  </span>
+                                  <span className={`text-[10px] font-bold ${evalItem.grade < 4.0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                                    {evalItem.grade.toFixed(1)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-5 bg-white rounded-2xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
+                    <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-500">No se encontraron calificaciones vinculadas para este estudiante</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Cargue el CSV de calificaciones desde la barra de navegación para ver su historial académico.</p>
+                  </div>
+                )}
               </div>
 
               {/* Interactive Grades Calculator Grid */}
@@ -2612,6 +3385,167 @@ export default function App() {
                 Entendido
               </button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: CSV QUALIFICATIONS IMPORT MODAL */}
+      {isImportGradesModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto" id="import-grades-modal-overlay">
+          <div className="bg-white rounded-[2rem] border border-slate-200/80 shadow-2xl w-full max-w-xl p-6 md:p-8 relative overflow-hidden text-left animate-scale-up" id="import-grades-modal">
+            
+            <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-lg font-extrabold text-slate-900">Importar Calificaciones y Asistencia</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsImportGradesModalOpen(false);
+                  setPendingImportData([]);
+                }}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {pendingImportData.length === 0 ? (
+              <div className="space-y-5">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Cargue el archivo de calificaciones (en formato CSV con separador de comas, punto y coma, o tabulador) para sincronizar las notas de sus alumnos de forma masiva.
+                </p>
+
+                {/* Drag & drop upload zone */}
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/20 rounded-2xl p-8 text-center cursor-pointer transition-all group"
+                  id="csv-drag-drop-zone"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const files = e.dataTransfer.files;
+                    if (files && files[0]) {
+                      const file = files[0];
+                      const reader = new FileReader();
+                      reader.onload = (evt) => {
+                        const text = evt.target?.result as string;
+                        const parsed = handleParseQualificationsCSV(text);
+                        if (parsed && parsed.length > 0) {
+                          setPendingImportData(parsed);
+                        }
+                      };
+                      reader.readAsText(file);
+                    }
+                  }}
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          const text = evt.target?.result as string;
+                          const parsed = handleParseQualificationsCSV(text);
+                          if (parsed && parsed.length > 0) {
+                            setPendingImportData(parsed);
+                          }
+                        };
+                        reader.readAsText(file);
+                      }
+                    }}
+                    className="hidden" 
+                    accept=".csv,.txt"
+                  />
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                    <FileSpreadsheet className="w-6 h-6" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800">Haga clic o arrastre su archivo CSV aquí</p>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Soporta formatos .csv codificados en UTF-8</p>
+                </div>
+
+                {/* CSV Format Reference Header info */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 text-[10px]">
+                  <span className="font-bold text-slate-700 block uppercase mb-1.5">Cabeceras Requeridas del CSV:</span>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-slate-500">
+                    <div>• <strong className="text-slate-700">RUT</strong> (Identificador único)</div>
+                    <div>• <strong className="text-slate-700">NOMBRE_ALUMNO</strong> (Nombre)</div>
+                    <div>• <strong className="text-slate-700">COD_CURSO</strong> (Código de Curso)</div>
+                    <div>• <strong className="text-slate-700">NOMBRE_CURSO</strong> (Asignatura)</div>
+                    <div>• <strong className="text-slate-700">NOTA_PARCIAL</strong> (Evaluación)</div>
+                    <div>• <strong className="text-slate-700">NOTA_FINAL_CURSO</strong> (Final)</div>
+                    <div>• <strong className="text-slate-700">PORCENTAJE_ASISTENCIA</strong> (%)</div>
+                    <div>• <strong className="text-slate-700">ESTADO_ALUMNO</strong> (SITUACION)</div>
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-2.5 leading-normal">
+                    Nota: Las notas se vincularán en tiempo real por RUT. Los estudiantes ausentes en la base se matricularán automáticamente si confirma la acción.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5 animate-bounce" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-emerald-800">Archivo Procesado con Éxito</h4>
+                    <p className="text-[11px] text-emerald-600 mt-0.5">Se detectaron <strong>{pendingImportData.length} registros</strong> de calificaciones listos para importar.</p>
+                  </div>
+                </div>
+
+                {/* Preliminary list of imports */}
+                <div className="border border-slate-150 rounded-xl max-h-[220px] overflow-y-auto divide-y divide-slate-100 text-xs">
+                  {pendingImportData.slice(0, 50).map((row, idx) => (
+                    <div key={idx} className="p-2.5 flex justify-between items-center bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <div>
+                        <strong className="text-slate-800 text-[11px] font-bold block">{row.NOMBRE_ALUMNO}</strong>
+                        <span className="text-[9px] text-slate-400 font-medium">RUT {row.RUT} • {row.NOMBRE_CURSO} ({row.COD_CURSO})</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded mr-1">Final: {row.NOTA_FINAL_CURSO}</span>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Asis: {row.PORCENTAJE_ASISTENCIA}%</span>
+                      </div>
+                    </div>
+                  ))}
+                  {pendingImportData.length > 50 && (
+                    <div className="p-2.5 text-center bg-slate-100 text-slate-400 text-[10px] font-bold uppercase">
+                      + {pendingImportData.length - 50} registros adicionales...
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2.5 justify-end pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={() => {
+                      setPendingImportData([]);
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Volver a cargar
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      const data = [...pendingImportData];
+                      setIsImportGradesModalOpen(false);
+                      setPendingImportData([]);
+                      await handleSaveQualifications(data);
+                    }}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    Confirmar e Importar Todo
+                  </button>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>
