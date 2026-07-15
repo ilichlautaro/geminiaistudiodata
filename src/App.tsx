@@ -112,7 +112,98 @@ interface Career {
 }
 
 // CFT Careers
-const CAREERS: Career[] = [];
+const CAREERS: Career[] = [
+  {
+    id: 'LGADM',
+    name: 'ADMINISTRACIÓN DE EMPRESAS',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Contabilidad General', 'Gestión de Personas', 'Marketing', 'Taller Integrado'],
+    color: 'bg-amber-500',
+    textColor: 'text-amber-600',
+    bgLight: 'bg-amber-50'
+  },
+  {
+    id: 'LGEST',
+    name: 'ESTÉTICA, COSMETOLOGÍA Y TERAPIAS COMPLEMENTARIAS',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Cosmetología Aplicada', 'Masoterapia', 'Terapias Holísticas', 'Taller de Estética'],
+    color: 'bg-emerald-500',
+    textColor: 'text-emerald-600',
+    bgLight: 'bg-emerald-50'
+  },
+  {
+    id: 'INF',
+    name: 'COMPUTACIÓN E INFORMÁTICA',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Programación Web', 'Bases de Datos', 'Soporte TI', 'Taller Integrado Software'],
+    color: 'bg-blue-500',
+    textColor: 'text-blue-600',
+    bgLight: 'bg-blue-50'
+  },
+  {
+    id: 'LGENF',
+    name: 'TÉCNICO EN ENFERMERÍA',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Fundamentos de Enfermería', 'Primeros Auxilios', 'Farmacología Clínica', 'Práctica de Simulación'],
+    color: 'bg-rose-500',
+    textColor: 'text-rose-600',
+    bgLight: 'bg-rose-50'
+  },
+  {
+    id: 'LGPARV',
+    name: 'EDUCACIÓN PARVULARIA',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Desarrollo Infantil', 'Planificación Didáctica', 'Taller Infantil', 'Práctica Parvularia'],
+    color: 'bg-purple-500',
+    textColor: 'text-purple-600',
+    bgLight: 'bg-purple-50'
+  },
+  {
+    id: 'LGTS',
+    name: 'TRABAJO SOCIAL',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Políticas Sociales', 'Metodología de Intervención', 'Taller Comunitario', 'Ética Profesional'],
+    color: 'bg-indigo-500',
+    textColor: 'text-indigo-600',
+    bgLight: 'bg-indigo-50'
+  },
+  {
+    id: 'LGMIN',
+    name: 'OPERACIONES MINERAS',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Geología General', 'Explotación de Minas', 'Seguridad Minera', 'Taller de Faena'],
+    color: 'bg-orange-500',
+    textColor: 'text-orange-600',
+    bgLight: 'bg-orange-50'
+  },
+  {
+    id: 'LGCONS',
+    name: 'CONSTRUCCIÓN',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Materiales de Construcción', 'Interpretación de Planos', 'Prevención de Riesgos', 'Taller de Obra'],
+    color: 'bg-teal-500',
+    textColor: 'text-teal-600',
+    bgLight: 'bg-teal-50'
+  },
+  {
+    id: 'LGLOG',
+    name: 'LOGÍSTICA',
+    capacity: 100,
+    durationSemesters: 5,
+    subjects: ['Gestión de Inventarios', 'Canales de Distribución', 'Administración de Bodegas', 'Taller de Logística'],
+    color: 'bg-cyan-500',
+    textColor: 'text-cyan-600',
+    bgLight: 'bg-cyan-50'
+  }
+];
 
 // Seed Students with realistic Chilean names & RUTs
 const INITIAL_STUDENTS: Student[] = [];
@@ -1739,7 +1830,7 @@ export default function App() {
 
                 {/* SVG Beautiful Dynamic Chart Bar Graphics */}
                 <div className="flex-1 flex flex-col justify-end min-h-[220px]" id="bento-svg-chart">
-                  <div className="flex items-end justify-between gap-4 md:gap-8 h-48 border-b border-slate-100 pb-2">
+                  <div className="flex items-end justify-between gap-1.5 sm:gap-2.5 md:gap-4 h-48 border-b border-slate-100 pb-2">
                     {careerStats.map(c => {
                       const value = 
                         dashboardChartMetric === 'students' ? c.studentCount : 
